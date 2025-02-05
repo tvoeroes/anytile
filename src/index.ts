@@ -286,12 +286,10 @@ class View // TODO: maybe custom element
 		const [beginCY, beginCX] = [clamp(beginY, 0, s), clamp(beginX, 0, s)]
 		const [endCY, endCX] = [clamp(endY, 0, s), clamp(endX, 0, s)]
 
-		console.log(`y: [${beginY}, ${endY})|${endY - beginY}, x: [${beginX}, ${endX})|${endX - beginX}`)
-
 		const toBeRequested: Tile[] = []
 
-		for (let y = beginY; y < endY; y++)
-			for (let x = beginX; x < endX; x++)
+		for (let y = beginCY; y < endCY; y++)
+			for (let x = beginCX; x < endCX; x++)
 			{
 				const tileId = TileId.ZYX(this.#z, y, x)
 				if (!TileId.inBounds(tileId))
