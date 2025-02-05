@@ -1,6 +1,6 @@
-# anytile
+# Anytile
 
-## Link to Tool
+## Link to the Tool
 
 [https://tvoeroes.github.io/anytile](https://tvoeroes.github.io/anytile)
 
