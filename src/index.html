@@ -8,14 +8,8 @@
 	<link rel="icon" href="favicon.ico" />
 
 	<style>
-		html,
 		body {
-			height: 100%;
 			margin: 0;
-		}
-
-		#app {
-			height: 100%;
 		}
 
 		#view {
@@ -23,8 +17,24 @@
 			height: 100%;
 		}
 
-		#loadingprogress {
+		#requests {
 			width: 24rem;
+		}
+
+		#ui {
+			position: absolute;
+			display: inline-block;
+			background-color: white;
+			padding: 0.5rem;
+			margin: 0.5rem;
+			border-radius: 0.25rem;
+			line-height: 1.5rem;
+			border-style: solid;
+			border-width: 0.0625rem;
+		}
+
+		#view {
+			position: absolute;
 		}
 	</style>
 
@@ -32,30 +42,25 @@
 </head>
 
 <body>
-	<!-- TODO: Help text. -->
-	<div id="app" style="position:relative;">
-		<!-- NOTE: tabindex="0" makes key events work on canvas -->
-		<canvas id="view" style="position:absolute;" tabindex="0"></canvas>
-		<div style="position:relative;">
+	<div>
+		<canvas id="view" tabindex="0"></canvas> <!-- NOTE: tabindex="0" makes key events work on canvas -->
+		<div id="ui">
 			<label>
-				Requests =
-				<progress id="loadingprogress" value="0"></progress>
+				Requests = <progress id="requests" value="0"></progress>
 			</label>
-			<form>
-				<label>
-					Z =
-					<input id="z" type="number" value="0" step="1" min="0" max="31" />
-				</label>
-				<label>
-					S =
-					<input id="s" type="number" value="256" step="1" min="1" max="2048" />
-				</label>
-				<br />
-				<label>
-					URL Template =
-					<input id="url" type="text" size="60" />
-				</label>
-			</form>
+			<br />
+			<label>
+				Z = <input id="z" type="number" value="0" step="1" min="0" max="31" />
+			</label>
+			<label>
+				S = <input id="s" type="number" value="256" step="1" min="1" max="2048" />
+			</label>
+			<br />
+			<label>
+				URL Template = <input id="url" type="text" size="48" />
+			</label>
+			<br />
+			<span><a href="https://github.com/tvoeroes/anytile">Source</a></span>
 		</div>
 	</div>
 </body>
