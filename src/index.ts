@@ -129,7 +129,7 @@ class Progress
 		if (Progress.#constructed)
 			throw_("Only one instance of Progress allowed.")
 		Progress.#constructed = true
-		this.#progressBar = document.querySelector("#loadingprogress") ?? throw_("#loadingprogress not found.")
+		this.#progressBar = document.querySelector("#requests") ?? throw_("#requests not found.")
 		this.#update()
 	}
 
