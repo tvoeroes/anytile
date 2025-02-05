@@ -12,38 +12,6 @@ function clamp(val: number, lo: number, hi: number)
 	return Math.min(Math.max(val, lo), hi)
 }
 
-function WTF_JAVASCRIPT_imageDataToImageURL(imageData: ImageData)
-{
-	const canvas = document.createElement("canvas")
-	const ctx = canvas.getContext("2d") ?? throw_("Failed to initialize 2d rendering context.")
-	canvas.width = imageData.width
-	canvas.height = imageData.height
-	ctx.putImageData(imageData, 0, 0)
-	return canvas.toDataURL()
-}
-
-function TMP_procedural(tileId: TileId, s: number)
-{
-	const sample = (y, x) =>
-	{
-		const f = 0.125
-		return [(Math.sin(y * 2 * Math.PI * f) * 0.5 + 0.5) * 255, (Math.cos(x * 2 * Math.PI * f) * 0.5 + 0.5) * 255, 0, 255]
-	}
-
-	const ss = TileId.size(tileId.z)
-
-	const buffer = new Uint8ClampedArray(s * s * 4)
-	for (let yy = 0; yy < s; yy++)
-		for (let xx = 0; xx < s; xx++)
-		{
-			const p = sample((yy + tileId.y * s) / ss, (xx + tileId.x * s) / ss)
-			for (let cc = 0; cc < 4; cc++)
-				buffer[yy * s * 4 + xx * 4 + cc] = p[cc]
-		}
-
-	return new ImageData(buffer, s, s)
-}
-
 class TileId
 {
 	z: number = 0
@@ -279,14 +247,11 @@ class View // TODO: maybe custom element
 
 	#url(tileId: TileId)
 	{
-		if (this.#tileSetTemplate === "")
-			return WTF_JAVASCRIPT_imageDataToImageURL(TMP_procedural(tileId, this.#tileSetSize))
-		else
-			return this.#tileSetTemplate
-				.replaceAll("{z}", tileId.z.toString()) // FIXME: can create scientific notation
-				.replaceAll("{y}", tileId.y.toString()) // FIXME: can convert to scientific notation
-				.replaceAll("{x}", tileId.x.toString()) // FIXME: can convert to scientific notation
-				.replaceAll("{q}", TileId.toQuadkey(tileId)) // FIXME: lazy evaluation to avoid quadkey calculation when not needed
+		return this.#tileSetTemplate
+			.replaceAll("{z}", tileId.z.toString()) // FIXME: can create scientific notation
+			.replaceAll("{y}", tileId.y.toString()) // FIXME: can convert to scientific notation
+			.replaceAll("{x}", tileId.x.toString()) // FIXME: can convert to scientific notation
+			.replaceAll("{q}", TileId.toQuadkey(tileId)) // FIXME: lazy evaluation to avoid quadkey calculation when not needed
 	}
 
 	#scheduleRender()
@@ -449,7 +414,8 @@ class View // TODO: maybe custom element
 
 	#keyFor(tileId: TileId)
 	{
-		return this.#url(tileId)
+		// NOTE: this.#url(tileId) is not sufficient for the case where the url template doesn't have sufficient placeholders such as url template === ""
+		return `${TileId.toString(tileId)}/${this.#tileSetTemplate}`
 	}
 
 	#getTranslation()
