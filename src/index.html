@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en-US">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Anytile</title>
+	<link rel="icon" href="favicon.ico" />
+
+	<style>
+		html,
+		body {
+			height: 100%;
+			margin: 0;
+		}
+
+		#app {
+			height: 100%;
+		}
+
+		#view {
+			width: 100%;
+			height: 100%;
+		}
+
+		#loadingprogress {
+			width: 24rem;
+		}
+	</style>
+
+	<script type="module" src="index.ts"></script>
+</head>
+
+<body>
+	<!-- TODO: Help text. -->
+	<div id="app" style="position:relative;">
+		<!-- NOTE: tabindex="0" makes key events work on canvas -->
+		<canvas id="view" style="position:absolute;" tabindex="0"></canvas>
+		<div style="position:relative;">
+			<label>
+				Requests =
+				<progress id="loadingprogress" value="0"></progress>
+			</label>
+			<form>
+				<label>
+					Z =
+					<input id="z" type="number" value="0" step="1" min="0" max="31" />
+				</label>
+				<label>
+					S =
+					<input id="s" type="number" value="256" step="1" min="1" max="2048" />
+				</label>
+				<br />
+				<label>
+					URL Template =
+					<input id="url" type="text" size="60" />
+				</label>
+			</form>
+		</div>
+	</div>
+</body>
+
+</html>

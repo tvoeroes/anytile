@@ -1,0 +1,11 @@
+{
+  "name": "anytile",
+  "source": "src/index.html",
+  "scripts": {
+    "dev": "parcel",
+    "build": "parcel build --no-source-maps --public-url ."
+  },
+  "devDependencies": {
+    "parcel": "^2.13.3"
+  }
+}
