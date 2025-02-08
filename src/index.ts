@@ -92,7 +92,6 @@ class View // TODO: maybe custom element
 	#ctx: CanvasRenderingContext2D
 	#y: number = 0.5 // TODO: remember center location from last session
 	#x: number = 0.5 // TODO: remember center location from last session
-	#r: number // TODO: make configurable and use to limit the loaded area on large screen when desired (overrides screen bounds)
 	#activePointer: number | null
 
 	#renderScheduled: boolean = false
@@ -139,8 +138,6 @@ class View // TODO: maybe custom element
 			else if (event.code === "KeyE")
 				this.#options.z = this.#options.z + 1
 		})
-
-		this.#r = 2 // TODO: configurable and use min(r_, screen bounds)
 
 		this.#activePointer = null
 
@@ -216,10 +213,40 @@ class View // TODO: maybe custom element
 
 		const [ye, xe] = [yo + this.#canvas.height, xo + this.#canvas.width] // TODO: make sure that this is evaluated after resize and before draw only
 
-		const [beginY, beginX] = [Math.floor(yo / this.#options.s), Math.floor(xo / this.#options.s)]
-		const [endY, endX] = [Math.ceil(ye / this.#options.s), Math.ceil(xe / this.#options.s)]
+		const [beginYscreen, beginXscreen] = [Math.floor(yo / this.#options.s), Math.floor(xo / this.#options.s)]
+		const [endYscreen, endXscreen] = [Math.ceil(ye / this.#options.s), Math.ceil(xe / this.#options.s)]
 
+		const [yc, xc] = [yo + this.#canvas.height / 2, xo + this.#canvas.width / 2] // TODO: make sure that this is evaluated after resize and before draw only
+		const [centerY, centerX] = [Math.round(yc / this.#options.s), Math.round(xc / this.#options.s)]
+		let [beginYr, beginXr] = [centerY - this.#options.r, centerX - this.#options.r]
+		let [endYr, endXr] = [centerY + this.#options.r, centerX + this.#options.r]
 		const s = TileId.size(this.#options.z)
+		// NOTE: not a problem if the values are still out of range after this adjustment
+		if (beginYr < 0)
+		{
+			endYr -= beginYr
+			beginYr -= beginYr
+		}
+		else if (endYr > s)
+		{
+			beginYr -= endYr - s
+			endYr -= endYr - s
+		}
+		// NOTE: not a problem if the values are still out of range after this adjustment
+		if (beginXr < 0)
+		{
+			endXr -= beginXr
+			beginXr -= beginXr
+		}
+		else if (endXr > s)
+		{
+			beginXr -= endXr - s
+			endXr -= endXr - s
+		}
+
+		const [beginY, beginX] = [Math.max(beginYscreen, beginYr), Math.max(beginXscreen, beginXr)]
+		const [endY, endX] = [Math.min(endYscreen, endYr), Math.min(endXscreen, endXr)]
+
 		const [beginCY, beginCX] = [clamp(beginY, 0, s), clamp(beginX, 0, s)]
 		const [endCY, endCX] = [clamp(endY, 0, s), clamp(endX, 0, s)]
 

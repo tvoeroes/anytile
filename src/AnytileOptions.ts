@@ -33,6 +33,7 @@ export class AnytileOptions extends HTMLElement
 	#requestsProgress: AnytileRequestsProgress
 	#z: HTMLInputElement
 	#s: HTMLInputElement
+	#r: HTMLInputElement
 	#url: HTMLInputElement
 	#callback: (() => void) | null = null
 	#saveOps: (() => void)[] = []
@@ -103,6 +104,16 @@ export class AnytileOptions extends HTMLElement
 		this.#s.max = "2048"
 		tweakable("s", this.#s)
 
+		space()
+
+		this.#r = document.createElement("input")
+		this.#r.type = "number"
+		this.#r.value = "4"
+		this.#r.step = "1"
+		this.#r.min = "1"
+		this.#r.max = "20"
+		tweakable("r", this.#r)
+
 		br()
 
 		this.#url = document.createElement("input")
@@ -143,6 +154,7 @@ export class AnytileOptions extends HTMLElement
 	get requestsProgress() { return this.#requestsProgress }
 	get z() { return parseFloat(this.#z.value) }
 	get s() { return parseFloat(this.#s.value) }
+	get r() { return parseFloat(this.#r.value) }
 	get url() { return this.#url.value }
 
 	set z(value: number) { this.#z.value = value.toString(); this.#update() }
