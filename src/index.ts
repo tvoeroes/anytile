@@ -90,8 +90,6 @@ class View // TODO: maybe custom element
 {
 	#canvas: HTMLCanvasElement
 	#ctx: CanvasRenderingContext2D
-	#y: number = 0.5 // TODO: remember center location from last session
-	#x: number = 0.5 // TODO: remember center location from last session
 	#activePointer: number | null
 
 	#renderScheduled: boolean = false
@@ -166,8 +164,8 @@ class View // TODO: maybe custom element
 				const d = this.#options.s * TileId.size(this.#options.z)
 
 				// FIXME: looks like, especially on z=0 it looks like pointer grab can drift from initial position
-				this.#y = clamp(this.#y - event.movementY / d, 0.0, 1.0) // TODO: clamp on read and on release, not on move
-				this.#x = clamp(this.#x - event.movementX / d, 0.0, 1.0)
+				this.#options.y = clamp(this.#options.y - event.movementY / d, 0.0, 1.0) // TODO: clamp on read and on release, not on move
+				this.#options.x = clamp(this.#options.x - event.movementX / d, 0.0, 1.0)
 
 				this.#update() // TODO: maybe rate-limit this
 
@@ -374,8 +372,8 @@ class View // TODO: maybe custom element
 	{
 		const d = this.#options.s * TileId.size(this.#options.z)
 		return [
-			Math.round(-this.#y * d + this.#canvas.height / 2),
-			Math.round(-this.#x * d + this.#canvas.width / 2),
+			Math.round(-this.#options.y * d + this.#canvas.height / 2),
+			Math.round(-this.#options.x * d + this.#canvas.width / 2),
 		]
 	}
 

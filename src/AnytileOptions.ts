@@ -31,6 +31,8 @@ class AnytileRequestsProgress
 export class AnytileOptions extends HTMLElement
 {
 	#requestsProgress: AnytileRequestsProgress
+	#y: HTMLInputElement
+	#x: HTMLInputElement
 	#z: HTMLInputElement
 	#s: HTMLInputElement
 	#r: HTMLInputElement
@@ -97,6 +99,28 @@ export class AnytileOptions extends HTMLElement
 		bar.value = 0
 		entry("requests", bar)
 		this.#requestsProgress = new AnytileRequestsProgress(bar)
+
+		br()
+
+		this.#y = document.createElement("input")
+		this.#y.type = "number"
+		this.#y.value = "0.5"
+		this.#y.step = "1"
+		this.#y.min = "0"
+		this.#y.max = "1"
+		this.#y.readOnly = true
+		tweakable("y", this.#y)
+
+		space()
+
+		this.#x = document.createElement("input")
+		this.#x.type = "number"
+		this.#x.value = "0.5"
+		this.#x.step = "1"
+		this.#x.min = "0"
+		this.#x.max = "1"
+		this.#x.readOnly = true
+		tweakable("x", this.#x)
 
 		br()
 
@@ -173,12 +197,16 @@ export class AnytileOptions extends HTMLElement
 	}
 
 	get requestsProgress() { return this.#requestsProgress }
+	get y() { return parseFloat(this.#y.value) }
+	get x() { return parseFloat(this.#x.value) }
 	get z() { return parseFloat(this.#z.value) }
 	get s() { return parseFloat(this.#s.value) }
 	get r() { return parseFloat(this.#r.value) }
 	get url() { return this.#url.value }
 	get bounds() { return this.#bounds.checked }
 
+	set y(value: number) { this.#y.value = value.toString(); this.#update() }
+	set x(value: number) { this.#x.value = value.toString(); this.#update() }
 	set z(value: number) { this.#z.value = value.toString(); this.#update() }
 	set callback(callback: (() => void) | null) { this.#callback = callback }
 }
