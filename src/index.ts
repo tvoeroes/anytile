@@ -295,7 +295,7 @@ class View // TODO: maybe custom element
 		this.#ctx.fillRect(0, 0, this.#canvas.width, this.#canvas.height)
 	}
 
-	#drawTile(image: HTMLImageElement | string, tileId: TileId, yt: number, xt: number)
+	#drawTile(image: HTMLImageElement | string | null, tileId: TileId, yt: number, xt: number)
 	{
 		const yo = yt + this.#yOffset(tileId)
 		const xo = xt + this.#xOffset(tileId)
@@ -305,6 +305,27 @@ class View // TODO: maybe custom element
 			this.#ctx.strokeStyle = image
 			// TODO: assert size constraints
 			this.#ctx.strokeRect(xo + 0.5, yo + 0.5, this.#options.s - 1.0, this.#options.s - 1.0)
+		}
+		else if (image === null) // TODO: copyable coordinates, quadkey string
+		{
+			this.#ctx.textBaseline = "top"
+			this.#ctx.fillStyle = "black"
+			this.#ctx.strokeStyle = "white"
+			const lineHeight = 16
+			this.#ctx.font = `${lineHeight}px sans-serif`
+
+			const xto = xo + Math.round(lineHeight / 2)
+			const yto = yo + Math.round(lineHeight / 2)
+
+			const textZ = `z=${tileId.z}`
+			const textY = `y=${tileId.y}`
+			const textX = `x=${tileId.x}`
+			this.#ctx.strokeText(textZ, xto, yto)
+			this.#ctx.fillText(textZ, xto, yto)
+			this.#ctx.strokeText(textY, xto, yto + lineHeight)
+			this.#ctx.fillText(textY, xto, yto + lineHeight)
+			this.#ctx.strokeText(textX, xto, yto + lineHeight * 2)
+			this.#ctx.fillText(textX, xto, yto + lineHeight * 2)
 		}
 		else if (this.#tileSetFlip)
 		{
@@ -396,6 +417,8 @@ class View // TODO: maybe custom element
 			else
 				this.#drawTile("red", tile.id, yt, xt)
 
+			if (this.#options.coords)
+				this.#drawTile(null, tile.id, yt, xt)
 		}
 	}
 }

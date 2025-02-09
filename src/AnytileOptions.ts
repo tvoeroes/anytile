@@ -38,6 +38,7 @@ export class AnytileOptions extends HTMLElement
 	#r: HTMLInputElement
 	#url: HTMLInputElement
 	#bounds: HTMLInputElement
+	#coords: HTMLInputElement
 	#callback: (() => void) | null = null
 	#saveOps: ((reset: boolean) => void)[] = []
 	#resetButton: HTMLButtonElement
@@ -186,6 +187,13 @@ export class AnytileOptions extends HTMLElement
 		this.#bounds.checked = false
 		tweakable("bounds", this.#bounds)
 
+		space()
+
+		this.#coords = document.createElement("input")
+		this.#coords.type = "checkbox"
+		this.#coords.checked = false
+		tweakable("coords", this.#coords)
+
 		br()
 
 		this.#url = document.createElement("input")
@@ -231,6 +239,7 @@ export class AnytileOptions extends HTMLElement
 	get r() { return parseFloat(this.#r.value) }
 	get url() { return this.#url.value }
 	get bounds() { return this.#bounds.checked }
+	get coords() { return this.#coords.checked }
 
 	set y(value: number) { this.#y.value = value.toString(); this.#update() }
 	set x(value: number) { this.#x.value = value.toString(); this.#update() }
