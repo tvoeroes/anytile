@@ -39,7 +39,9 @@ export class AnytileOptions extends HTMLElement
 	#url: HTMLInputElement
 	#bounds: HTMLInputElement
 	#callback: (() => void) | null = null
-	#saveOps: (() => void)[] = []
+	#saveOps: ((reset: boolean) => void)[] = []
+	#resetButton: HTMLButtonElement
+	#doReset: boolean = false
 
 	static #keyPrefix = "anytile-options-" // FIXME: handle multiple instances oy AnytileOotions correctly
 
@@ -81,9 +83,22 @@ export class AnytileOptions extends HTMLElement
 
 			// setup save
 			if (element.type === "checkbox")
-				this.#saveOps.push(() => localStorage.setItem(storeKey, element.checked.toString()))
+				this.#saveOps.push((reset: boolean) =>
+				{
+					if (reset)
+						localStorage.removeItem(storeKey)
+					else
+						localStorage.setItem(storeKey, element.checked.toString())
+				})
 			else
-				this.#saveOps.push(() => localStorage.setItem(storeKey, element.value))
+				this.#saveOps.push((reset: boolean) =>
+				{
+					if (reset)
+						localStorage.removeItem(storeKey)
+					else
+						localStorage.setItem(storeKey, element.value)
+
+				})
 
 			// load
 			if (value !== null)
@@ -121,6 +136,18 @@ export class AnytileOptions extends HTMLElement
 		this.#x.max = "1"
 		this.#x.readOnly = true
 		tweakable("x", this.#x)
+
+		space()
+
+		this.#resetButton = document.createElement("button")
+		this.#resetButton.type = "button"
+		this.#resetButton.innerText = "Reset"
+		this.#resetButton.addEventListener("click", () =>
+		{
+			this.#doReset = true
+			window.location.reload()
+		})
+		root.appendChild(this.#resetButton)
 
 		br()
 
@@ -170,7 +197,7 @@ export class AnytileOptions extends HTMLElement
 		window.addEventListener("beforeunload", () =>
 		{
 			for (const saveOp of this.#saveOps)
-				saveOp()
+				saveOp(this.#doReset)
 		})
 	}
 
