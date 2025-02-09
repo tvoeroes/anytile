@@ -388,9 +388,13 @@ class View // TODO: maybe custom element
 		for (const [_, tile] of this.#tiles)
 		{
 			if (tile.image !== null)
+			{
 				this.#drawTile(tile.image, tile.id, yt, xt)
+				if (this.#options.bounds)
+					this.#drawTile("grey", tile.id, yt, xt)
+			}
 			else if (!tile.error)
-				this.#drawTile("green", tile.id, yt, xt)
+				this.#drawTile("yellow", tile.id, yt, xt)
 			else
 				this.#drawTile("red", tile.id, yt, xt)
 

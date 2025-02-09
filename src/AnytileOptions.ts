@@ -35,6 +35,7 @@ export class AnytileOptions extends HTMLElement
 	#s: HTMLInputElement
 	#r: HTMLInputElement
 	#url: HTMLInputElement
+	#bounds: HTMLInputElement
 	#callback: (() => void) | null = null
 	#saveOps: (() => void)[] = []
 
@@ -66,17 +67,30 @@ export class AnytileOptions extends HTMLElement
 
 		const tweakable = (name: string, element: HTMLInputElement) =>
 		{
-			element.addEventListener("input", () => this.#update())
-
+			const storeKey = AnytileOptions.#keyPrefix + name
+			const value = localStorage.getItem(storeKey)
 			entry(name, element)
 
-			const storeKey = AnytileOptions.#keyPrefix + name
+			// setup watch
+			if (element.type === "checkbox")
+				element.addEventListener("change", () => this.#update())
+			else
+				element.addEventListener("input", () => this.#update())
 
-			const value = localStorage.getItem(storeKey)
+			// setup save
+			if (element.type === "checkbox")
+				this.#saveOps.push(() => localStorage.setItem(storeKey, element.checked.toString()))
+			else
+				this.#saveOps.push(() => localStorage.setItem(storeKey, element.value))
+
+			// load
 			if (value !== null)
-				element.value = value
-
-			this.#saveOps.push(() => localStorage.setItem(storeKey, element.value))
+			{
+				if (element.type === "checkbox")
+					element.checked = value === "true" ? true : false
+				else
+					element.value = value
+			}
 		}
 
 		const bar = document.createElement("progress")
@@ -113,6 +127,13 @@ export class AnytileOptions extends HTMLElement
 		this.#r.min = "1"
 		this.#r.max = "20"
 		tweakable("r", this.#r)
+
+		space()
+
+		this.#bounds = document.createElement("input")
+		this.#bounds.type = "checkbox"
+		this.#bounds.checked = false
+		tweakable("bounds", this.#bounds)
 
 		br()
 
@@ -156,6 +177,7 @@ export class AnytileOptions extends HTMLElement
 	get s() { return parseFloat(this.#s.value) }
 	get r() { return parseFloat(this.#r.value) }
 	get url() { return this.#url.value }
+	get bounds() { return this.#bounds.checked }
 
 	set z(value: number) { this.#z.value = value.toString(); this.#update() }
 	set callback(callback: (() => void) | null) { this.#callback = callback }
