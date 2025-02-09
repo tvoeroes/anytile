@@ -334,44 +334,34 @@ class View // TODO: maybe custom element
 	#asyncAdd(tile: Tile)
 	{
 		this.#options.requestsProgress.addTotal(1)
+
 		const image = new Image()
 		image.src = this.#url(tile.id)
-		image.addEventListener("load", () =>
-		{
-			// TODO: rate-limit, de-duplicate requests (ABA problem)
-			// const key = this.#keyFor(tileId)
-			// const existing = this.tiles.get(key)
-			// if (!tile.obsolete)
-			// {
 
-			// }
+		// TODO: rate-limit
+
+		const success = () =>
+		{
 			if (!tile.obsolete)
 			{
 				tile.image = image
-				// if (existing !== undefined)
-				// {
-				// 	existing.image = image
 				this.#options.requestsProgress.addDone(1)
 				this.#scheduleRender()
 			}
-			// }
-		})
-		image.addEventListener("error", () =>
+		}
+
+		const failure = () =>
 		{
-			// TODO: rate-limit, de-duplicate requests (ABA problem)
-			// const key = this.#keyFor(tileId)
-			// const existing = this.tiles.get(key)
-			// if (existing !== undefined)
-			// {
-			// TODO: mark as failed
 			if (!tile.obsolete)
 			{
 				tile.error = true
 				this.#options.requestsProgress.addDone(1)
 				this.#scheduleRender()
 			}
-			// }
-		})
+
+		}
+
+		image.decode().then(success).catch(failure)
 	}
 
 	#keyFor(tileId: TileId)
