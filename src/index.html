@@ -17,11 +17,7 @@
 			height: 100%;
 		}
 
-		#requests {
-			width: 24rem;
-		}
-
-		#ui {
+		anytile-options {
 			position: absolute;
 			display: inline-block;
 			background-color: white;
@@ -31,6 +27,10 @@
 			line-height: 1.5rem;
 			border-style: solid;
 			border-width: 0.0625rem;
+
+			progress {
+				width: 24rem;
+			}
 		}
 
 		#view {
@@ -44,24 +44,7 @@
 <body>
 	<div>
 		<canvas id="view" tabindex="0"></canvas> <!-- NOTE: tabindex="0" makes key events work on canvas -->
-		<div id="ui">
-			<label>
-				Requests = <progress id="requests" value="0"></progress>
-			</label>
-			<br />
-			<label>
-				Z = <input id="z" type="number" value="0" step="1" min="0" max="31" />
-			</label>
-			<label>
-				S = <input id="s" type="number" value="256" step="1" min="1" max="2048" />
-			</label>
-			<br />
-			<label>
-				URL Template = <input id="url" type="text" size="48" />
-			</label>
-			<br />
-			<span><a href="https://github.com/tvoeroes/anytile">Source</a></span>
-		</div>
+		<anytile-options></anytile-options>
 	</div>
 </body>
 

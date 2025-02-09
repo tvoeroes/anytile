@@ -1,16 +1,5 @@
-"use strict"
-
-document.addEventListener("DOMContentLoaded", main)
-
-function throw_(message: string): never
-{
-	throw new Error(message)
-}
-
-function clamp(val: number, lo: number, hi: number)
-{
-	return Math.min(Math.max(val, lo), hi)
-}
+import { AnytileOptions } from "./AnytileOptions.ts"
+import { throw_, clamp } from "./AnytileUtils.ts"
 
 class TileId
 {
@@ -89,39 +78,6 @@ class TileId
 	}
 }
 
-// TODO: UI PROGRESS BAR
-class Progress
-{
-	constructor()
-	{
-		if (Progress.#constructed)
-			throw_("Only one instance of Progress allowed.")
-		Progress.#constructed = true
-		this.#progressBar = document.querySelector("#requests") ?? throw_("#requests not found.")
-		this.#update()
-	}
-
-	addTotal(n: number) { this.#total += n; this.#update() }
-	addDone(n: number) { this.#done += n; this.#update() }
-	reset() { this.#total = 0; this.#done = 0; this.#update() }
-	status() { return this.#total == 0 ? 1.0 : this.#done / this.#total }
-
-	static #constructed = false
-	#total: number = 0
-	#done: number = 0
-	#progressBar: HTMLProgressElement
-
-	#update()
-	{
-		if (this.#total < 0 || this.#done < 0 || this.#total < this.#done)
-		{
-			this.#progressBar.removeAttribute("value") // hmm, I guess
-			throw_("Bad Progress state.")
-		}
-		this.#progressBar.value = this.status()
-	}
-}
-
 interface Tile
 {
 	readonly id: TileId
@@ -134,25 +90,22 @@ class View // TODO: maybe custom element
 {
 	#canvas: HTMLCanvasElement
 	#ctx: CanvasRenderingContext2D
-	#progress: Progress
-	#z: number
-	#y: number = 0.5 // TODO: remember center location from last session
-	#x: number = 0.5 // TODO: remember center location from last session
-	#r: number // TODO: make configurable and use to limit the loaded area on large screen when desired (overrides screen bounds)
 	#activePointer: number | null
 
 	#renderScheduled: boolean = false
 
 	#tiles: Map<string, Tile> = new Map()
 
-	#tileSetTemplate: string = ""
-	#tileSetSize: number = 256
 	#tileSetFlip: boolean
 
 	#resizeObserver: ResizeObserver
 
-	constructor(options: Options) // TODO: "busy indicator" maybe spinner, maybe some red/green light
+	#options: AnytileOptions
+
+	constructor(options: AnytileOptions) // TODO: "busy indicator" maybe spinner, maybe some red/green light
 	{
+		this.#options = options
+
 		this.#tileSetFlip = false
 
 		this.#canvas = document.querySelector("#view") ?? throw_("#view not found.")
@@ -173,37 +126,16 @@ class View // TODO: maybe custom element
 		this.#resizeObserver.observe(this.#canvas)
 
 		this.#ctx = this.#canvas.getContext("2d") ?? throw_("Failed to initialize 2d rendering context.")
-		this.#progress = new Progress()
 
-		// WARNING: callback called, immediately and accessing #canvas
-		options.register("url", (value: string) =>
-		{
-			this.#tileSetTemplate = value
-			this.#update()
-		})
-		// WARNING: callback called, immediately and accessing #canvas
-		options.register("s", (value: string) =>
-		{
-			this.#tileSetSize = parseFloat(value)
-			this.#update()
-		})
-
-		// TODO: scroll-zoom at the mouse pointer location
-		const zSetter = options.register("z", (value: string) =>
-		{
-			this.#z = parseFloat(value)
-			this.#update() // TODO: maybe rate-limit this
-		})
+		this.#options.callback = () => { this.#update(); this.#scheduleRender() }
 
 		this.#canvas.addEventListener("keydown", event =>
 		{
 			if (event.code === "KeyQ")
-				zSetter((this.#z - 1).toString())
+				this.#options.z = this.#options.z - 1
 			else if (event.code === "KeyE")
-				zSetter((this.#z + 1).toString())
+				this.#options.z = this.#options.z + 1
 		})
-
-		this.#r = 2 // TODO: configurable and use min(r_, screen bounds)
 
 		this.#activePointer = null
 
@@ -229,11 +161,11 @@ class View // TODO: maybe custom element
 		{
 			if (this.#activePointer === event.pointerId)
 			{
-				const d = this.#tileSetSize * TileId.size(this.#z)
+				const d = this.#options.s * TileId.size(this.#options.z)
 
 				// FIXME: looks like, especially on z=0 it looks like pointer grab can drift from initial position
-				this.#y = clamp(this.#y - event.movementY / d, 0.0, 1.0) // TODO: clamp on read and on release, not on move
-				this.#x = clamp(this.#x - event.movementX / d, 0.0, 1.0)
+				this.#options.y = clamp(this.#options.y - event.movementY / d, 0.0, 1.0) // TODO: clamp on read and on release, not on move
+				this.#options.x = clamp(this.#options.x - event.movementX / d, 0.0, 1.0)
 
 				this.#update() // TODO: maybe rate-limit this
 
@@ -247,7 +179,7 @@ class View // TODO: maybe custom element
 
 	#url(tileId: TileId)
 	{
-		return this.#tileSetTemplate
+		return this.#options.url
 			.replaceAll("{z}", tileId.z.toString()) // FIXME: can create scientific notation
 			.replaceAll("{y}", tileId.y.toString()) // FIXME: can convert to scientific notation
 			.replaceAll("{x}", tileId.x.toString()) // FIXME: can convert to scientific notation
@@ -279,10 +211,40 @@ class View // TODO: maybe custom element
 
 		const [ye, xe] = [yo + this.#canvas.height, xo + this.#canvas.width] // TODO: make sure that this is evaluated after resize and before draw only
 
-		const [beginY, beginX] = [Math.floor(yo / this.#tileSetSize), Math.floor(xo / this.#tileSetSize)]
-		const [endY, endX] = [Math.ceil(ye / this.#tileSetSize), Math.ceil(xe / this.#tileSetSize)]
+		const [beginYscreen, beginXscreen] = [Math.floor(yo / this.#options.s), Math.floor(xo / this.#options.s)]
+		const [endYscreen, endXscreen] = [Math.ceil(ye / this.#options.s), Math.ceil(xe / this.#options.s)]
 
-		const s = TileId.size(this.#z)
+		const [yc, xc] = [yo + this.#canvas.height / 2, xo + this.#canvas.width / 2] // TODO: make sure that this is evaluated after resize and before draw only
+		const [centerY, centerX] = [Math.round(yc / this.#options.s), Math.round(xc / this.#options.s)]
+		let [beginYr, beginXr] = [centerY - this.#options.r, centerX - this.#options.r]
+		let [endYr, endXr] = [centerY + this.#options.r, centerX + this.#options.r]
+		const s = TileId.size(this.#options.z)
+		// NOTE: not a problem if the values are still out of range after this adjustment
+		if (beginYr < 0)
+		{
+			endYr -= beginYr
+			beginYr -= beginYr
+		}
+		else if (endYr > s)
+		{
+			beginYr -= endYr - s
+			endYr -= endYr - s
+		}
+		// NOTE: not a problem if the values are still out of range after this adjustment
+		if (beginXr < 0)
+		{
+			endXr -= beginXr
+			beginXr -= beginXr
+		}
+		else if (endXr > s)
+		{
+			beginXr -= endXr - s
+			endXr -= endXr - s
+		}
+
+		const [beginY, beginX] = [Math.max(beginYscreen, beginYr), Math.max(beginXscreen, beginXr)]
+		const [endY, endX] = [Math.min(endYscreen, endYr), Math.min(endXscreen, endXr)]
+
 		const [beginCY, beginCX] = [clamp(beginY, 0, s), clamp(beginX, 0, s)]
 		const [endCY, endCX] = [clamp(endY, 0, s), clamp(endX, 0, s)]
 
@@ -291,7 +253,7 @@ class View // TODO: maybe custom element
 		for (let y = beginCY; y < endCY; y++)
 			for (let x = beginCX; x < endCX; x++)
 			{
-				const tileId = TileId.ZYX(this.#z, y, x)
+				const tileId = TileId.ZYX(this.#options.z, y, x)
 				if (!TileId.inBounds(tileId))
 					continue // NOTE: should never be triggered
 
@@ -319,9 +281,9 @@ class View // TODO: maybe custom element
 			tile.obsolete = true
 			if (tile.image !== null || tile.error)
 			{
-				this.#progress.addDone(-1)
+				this.#options.requestsProgress.addDone(-1)
 			}
-			this.#progress.addTotal(-1)
+			this.#options.requestsProgress.addTotal(-1)
 		}
 
 		this.#tiles = map
@@ -333,7 +295,7 @@ class View // TODO: maybe custom element
 		this.#ctx.fillRect(0, 0, this.#canvas.width, this.#canvas.height)
 	}
 
-	#drawTile(image: HTMLImageElement | string, tileId: TileId, yt: number, xt: number)
+	#drawTile(image: HTMLImageElement | string | null, tileId: TileId, yt: number, xt: number)
 	{
 		const yo = yt + this.#yOffset(tileId)
 		const xo = xt + this.#xOffset(tileId)
@@ -342,7 +304,28 @@ class View // TODO: maybe custom element
 		{
 			this.#ctx.strokeStyle = image
 			// TODO: assert size constraints
-			this.#ctx.strokeRect(xo + 0.5, yo + 0.5, this.#tileSetSize - 1.0, this.#tileSetSize - 1.0)
+			this.#ctx.strokeRect(xo + 0.5, yo + 0.5, this.#options.s - 1.0, this.#options.s - 1.0)
+		}
+		else if (image === null) // TODO: copyable coordinates, quadkey string
+		{
+			this.#ctx.textBaseline = "top"
+			this.#ctx.fillStyle = "black"
+			this.#ctx.strokeStyle = "white"
+			const lineHeight = 16
+			this.#ctx.font = `${lineHeight}px sans-serif`
+
+			const xto = xo + Math.round(lineHeight / 2)
+			const yto = yo + Math.round(lineHeight / 2)
+
+			const textZ = `z=${tileId.z}`
+			const textY = `y=${tileId.y}`
+			const textX = `x=${tileId.x}`
+			this.#ctx.strokeText(textZ, xto, yto)
+			this.#ctx.fillText(textZ, xto, yto)
+			this.#ctx.strokeText(textY, xto, yto + lineHeight)
+			this.#ctx.fillText(textY, xto, yto + lineHeight)
+			this.#ctx.strokeText(textX, xto, yto + lineHeight * 2)
+			this.#ctx.fillText(textX, xto, yto + lineHeight * 2)
 		}
 		else if (this.#tileSetFlip)
 		{
@@ -359,69 +342,59 @@ class View // TODO: maybe custom element
 
 	#xOffset(tileId: TileId)
 	{
-		return this.#tileSetSize * tileId.x
+		return this.#options.s * tileId.x
 	}
 
 	#yOffset(tileId: TileId)
 	{
-		return this.#tileSetSize * tileId.y
+		return this.#options.s * tileId.y
 	}
 
 	#asyncAdd(tile: Tile)
 	{
-		this.#progress.addTotal(1)
+		this.#options.requestsProgress.addTotal(1)
+
 		const image = new Image()
 		image.src = this.#url(tile.id)
-		image.addEventListener("load", () =>
-		{
-			// TODO: rate-limit, de-duplicate requests (ABA problem)
-			// const key = this.#keyFor(tileId)
-			// const existing = this.tiles.get(key)
-			// if (!tile.obsolete)
-			// {
 
-			// }
+		// TODO: rate-limit
+
+		const success = () =>
+		{
 			if (!tile.obsolete)
 			{
 				tile.image = image
-				// if (existing !== undefined)
-				// {
-				// 	existing.image = image
-				this.#progress.addDone(1)
+				this.#options.requestsProgress.addDone(1)
 				this.#scheduleRender()
 			}
-			// }
-		})
-		image.addEventListener("error", () =>
+		}
+
+		const failure = () =>
 		{
-			// TODO: rate-limit, de-duplicate requests (ABA problem)
-			// const key = this.#keyFor(tileId)
-			// const existing = this.tiles.get(key)
-			// if (existing !== undefined)
-			// {
-			// TODO: mark as failed
 			if (!tile.obsolete)
 			{
 				tile.error = true
-				this.#progress.addDone(1)
+				this.#options.requestsProgress.addDone(1)
 				this.#scheduleRender()
 			}
-			// }
-		})
+
+		}
+
+		image.decode().then(success).catch(failure)
 	}
 
 	#keyFor(tileId: TileId)
 	{
 		// NOTE: this.#url(tileId) is not sufficient for the case where the url template doesn't have sufficient placeholders such as url template === ""
-		return `${TileId.toString(tileId)}/${this.#tileSetTemplate}`
+		return `${TileId.toString(tileId)}/${this.#options.url}`
 	}
 
 	#getTranslation()
 	{
-		const d = this.#tileSetSize * TileId.size(this.#z)
+		const d = this.#options.s * TileId.size(this.#options.z)
 		return [
-			Math.round(-this.#y * d + this.#canvas.height / 2),
-			Math.round(-this.#x * d + this.#canvas.width / 2),
+			Math.round(-this.#options.y * d + this.#canvas.height / 2),
+			Math.round(-this.#options.x * d + this.#canvas.width / 2),
 		]
 	}
 
@@ -434,52 +407,25 @@ class View // TODO: maybe custom element
 		for (const [_, tile] of this.#tiles)
 		{
 			if (tile.image !== null)
+			{
 				this.#drawTile(tile.image, tile.id, yt, xt)
+				if (this.#options.bounds)
+					this.#drawTile("grey", tile.id, yt, xt)
+			}
 			else if (!tile.error)
-				this.#drawTile("green", tile.id, yt, xt)
+				this.#drawTile("yellow", tile.id, yt, xt)
 			else
 				this.#drawTile("red", tile.id, yt, xt)
 
+			if (this.#options.coords)
+				this.#drawTile(null, tile.id, yt, xt)
 		}
 	}
 }
 
-class Options // TODO: maybe custom element instead of singleton
+document.addEventListener("DOMContentLoaded", () =>
 {
-	#saveOps: (() => void)[] = []
-	static #constructed = false
+	customElements.define("anytile-options", AnytileOptions)
 
-	constructor()
-	{
-		if (Options.#constructed)
-			throw_("Only one instance of Options allowed.")
-		Options.#constructed = true
-		window.addEventListener("beforeunload", () =>
-		{
-			for (const saveOp of this.#saveOps)
-				saveOp()
-		})
-	}
-
-	/**
-	 * @returns Setter that can be used to set the value from outside.
-	 */
-	// WARNING: multiple registrations for same option are possible and will cause multiple save calls
-	register(option: string, callback: (value: string) => void): (value: string) => void
-	{
-		const input: HTMLInputElement = document.querySelector(`#${option}`) ?? throw_(`#${option} not found.`)
-		const value = localStorage.getItem(option)
-		if (value !== null)
-			input.value = value
-		callback(input.value)
-		input.addEventListener("input", () => { callback(input.value) })
-		this.#saveOps.push(() => localStorage.setItem(option, input.value))
-		return (value: string) => { input.value = value; callback(input.value) }
-	}
-}
-
-function main()
-{
-	const options = new Options()
-	const view = new View(options)
-}
+	const view = new View(document.querySelector("anytile-options") ?? throw_("anytile-options not found"))
+})
