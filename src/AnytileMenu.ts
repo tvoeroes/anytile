@@ -28,7 +28,7 @@ class AnytileRequestsProgress
 	}
 }
 
-export class AnytileOptions extends HTMLElement
+export class AnytileMenu extends HTMLElement
 {
 	#requestsProgress: AnytileRequestsProgress
 	#y: HTMLInputElement
@@ -140,7 +140,7 @@ export class AnytileOptions extends HTMLElement
 
 		this.#resetButton = document.createElement("button")
 		this.#resetButton.type = "button"
-		this.#resetButton.innerText = "Reset"
+		this.#resetButton.innerText = "Reset Menu"
 		this.#resetButton.addEventListener("click", () =>
 		{
 			this.#doReset = true
@@ -210,9 +210,9 @@ export class AnytileOptions extends HTMLElement
 		}
 
 		{
-			const datalistId = tryFindFreeId("anytile-options-url-list-")
+			const datalistId = tryFindFreeId("anytile-menu-url-list-")
 			if (datalistId === null)
-				throw_("Failed to generate a unique id for AnytileOptions.")
+				throw_("Failed to generate a unique id for AnytileMenu.")
 
 			this.#url.setAttribute("list", datalistId)
 
