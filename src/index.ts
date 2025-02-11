@@ -102,13 +102,13 @@ class View // TODO: maybe custom element
 
 	#options: AnytileOptions
 
-	constructor(options: AnytileOptions) // TODO: "busy indicator" maybe spinner, maybe some red/green light
+	constructor(canvas: HTMLCanvasElement, options: AnytileOptions) // TODO: "busy indicator" maybe spinner, maybe some red/green light
 	{
 		this.#options = options
 
 		this.#tileSetFlip = false
 
-		this.#canvas = document.querySelector("#view") ?? throw_("#view not found.")
+		this.#canvas = canvas
 		// TODO: handle window.devicePixelRatio !== 1 ???
 		this.#resizeObserver = new ResizeObserver((entries, observer) =>
 		{
@@ -427,5 +427,15 @@ document.addEventListener("DOMContentLoaded", () =>
 {
 	customElements.define("anytile-options", AnytileOptions)
 
-	const view = new View(document.querySelector("anytile-options") ?? throw_("anytile-options not found"))
+	const app = document.querySelector("#app") ?? throw_("#app not found.")
+
+	const canvas = document.createElement("canvas")
+	canvas.setAttribute("tabindex", "0") // NOTE: tabindex="0" makes key events work on canvas
+	canvas.id = "view" // TODO: custom attribute and use that for css instead?
+	app.appendChild(canvas)
+
+	const options = new AnytileOptions("anytile-options-")
+	app.appendChild(options)
+
+	const view = new View(canvas, options)
 })
