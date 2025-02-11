@@ -427,7 +427,9 @@ document.addEventListener("DOMContentLoaded", () =>
 {
 	customElements.define("anytile-menu", AnytileMenu)
 
-	const app = document.querySelector("#app") ?? throw_("#app not found.")
+	const app = document.createElement("div")
+	app.id = "app"
+	document.body.appendChild(app)
 
 	const canvas = document.createElement("canvas")
 	canvas.setAttribute("tabindex", "0") // NOTE: tabindex="0" makes key events work on canvas
