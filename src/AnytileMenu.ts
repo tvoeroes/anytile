@@ -1,4 +1,4 @@
-import { throw_ } from "./AnytileUtils.ts"
+import { throw_, tryFindFreeId } from "./AnytileUtils.ts"
 
 class AnytileRequestsProgress
 {
@@ -28,7 +28,7 @@ class AnytileRequestsProgress
 	}
 }
 
-export class AnytileOptions extends HTMLElement
+export class AnytileMenu extends HTMLElement
 {
 	#requestsProgress: AnytileRequestsProgress
 	#y: HTMLInputElement
@@ -44,9 +44,7 @@ export class AnytileOptions extends HTMLElement
 	#resetButton: HTMLButtonElement
 	#doReset: boolean = false
 
-	static #keyPrefix = "anytile-options-" // FIXME: handle multiple instances oy AnytileOotions correctly
-
-	constructor()
+	constructor(localStorageKeyPrefix: string)
 	{
 		super()
 
@@ -72,7 +70,7 @@ export class AnytileOptions extends HTMLElement
 
 		const tweakable = (name: string, element: HTMLInputElement) =>
 		{
-			const storeKey = AnytileOptions.#keyPrefix + name
+			const storeKey = localStorageKeyPrefix + name
 			const value = localStorage.getItem(storeKey)
 			entry(name, element)
 
@@ -142,7 +140,7 @@ export class AnytileOptions extends HTMLElement
 
 		this.#resetButton = document.createElement("button")
 		this.#resetButton.type = "button"
-		this.#resetButton.innerText = "Reset"
+		this.#resetButton.innerText = "Reset Menu"
 		this.#resetButton.addEventListener("click", () =>
 		{
 			this.#doReset = true
@@ -201,6 +199,66 @@ export class AnytileOptions extends HTMLElement
 		this.#url.value = ""
 		this.#url.size = 48
 		tweakable("url", this.#url)
+
+		const datalist = document.createElement("datalist")
+
+		const addDatalistEntry = (value: string) =>
+		{
+			const option = document.createElement("option")
+			option.value = value
+			datalist.appendChild(option)
+		}
+
+		{
+			const datalistId = tryFindFreeId("anytile-menu-url-list-")
+			if (datalistId === null)
+				throw_("Failed to generate a unique id for AnytileMenu.")
+
+			this.#url.setAttribute("list", datalistId)
+
+			datalist.id = datalistId
+
+			{
+				const storeKey = localStorageKeyPrefix + "url-datalist"
+				const value = localStorage.getItem(storeKey) ?? "[]"
+
+				const elements = JSON.parse(value)
+
+				for (let i = 0; i < elements.length; i++)
+					addDatalistEntry(elements[i])
+
+				this.#saveOps.push((reset: boolean) =>
+				{
+					if (reset)
+					{
+						localStorage.removeItem(storeKey)
+					}
+					else
+					{
+						const list: string[] = []
+						for (const option of datalist.options)
+							list.push(option.value)
+						localStorage.setItem(storeKey, JSON.stringify(list)) // TODO: maybe don't save if there were no changes?
+					}
+
+				})
+			}
+
+			root.appendChild(datalist)
+		}
+
+		space()
+
+		this.#resetButton = document.createElement("button")
+		this.#resetButton.type = "button"
+		this.#resetButton.innerText = "Save"
+		this.#resetButton.addEventListener("click", () =>
+		{
+			const value = this.#url.value
+			if (value !== "")
+				addDatalistEntry(value)
+		})
+		root.appendChild(this.#resetButton)
 
 		window.addEventListener("beforeunload", () =>
 		{

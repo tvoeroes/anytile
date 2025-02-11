@@ -1,4 +1,4 @@
-import { AnytileOptions } from "./AnytileOptions.ts"
+import { AnytileMenu } from "./AnytileMenu.ts"
 import { throw_, clamp } from "./AnytileUtils.ts"
 
 class TileId
@@ -86,7 +86,7 @@ interface Tile
 	error: boolean
 }
 
-class View // TODO: maybe custom element
+export class AnytileView // TODO: maybe custom element
 {
 	#canvas: HTMLCanvasElement
 	#ctx: CanvasRenderingContext2D
@@ -100,15 +100,15 @@ class View // TODO: maybe custom element
 
 	#resizeObserver: ResizeObserver
 
-	#options: AnytileOptions
+	#menu: AnytileMenu
 
-	constructor(options: AnytileOptions) // TODO: "busy indicator" maybe spinner, maybe some red/green light
+	constructor(canvas: HTMLCanvasElement, menu: AnytileMenu) // TODO: "busy indicator" maybe spinner, maybe some red/green light
 	{
-		this.#options = options
+		this.#menu = menu
 
 		this.#tileSetFlip = false
 
-		this.#canvas = document.querySelector("#view") ?? throw_("#view not found.")
+		this.#canvas = canvas
 		// TODO: handle window.devicePixelRatio !== 1 ???
 		this.#resizeObserver = new ResizeObserver((entries, observer) =>
 		{
@@ -127,14 +127,14 @@ class View // TODO: maybe custom element
 
 		this.#ctx = this.#canvas.getContext("2d") ?? throw_("Failed to initialize 2d rendering context.")
 
-		this.#options.callback = () => { this.#update(); this.#scheduleRender() }
+		this.#menu.callback = () => { this.#update(); this.#scheduleRender() }
 
 		this.#canvas.addEventListener("keydown", event =>
 		{
 			if (event.code === "KeyQ")
-				this.#options.z = this.#options.z - 1
+				this.#menu.z = this.#menu.z - 1
 			else if (event.code === "KeyE")
-				this.#options.z = this.#options.z + 1
+				this.#menu.z = this.#menu.z + 1
 		})
 
 		this.#activePointer = null
@@ -161,11 +161,11 @@ class View // TODO: maybe custom element
 		{
 			if (this.#activePointer === event.pointerId)
 			{
-				const d = this.#options.s * TileId.size(this.#options.z)
+				const d = this.#menu.s * TileId.size(this.#menu.z)
 
 				// FIXME: looks like, especially on z=0 it looks like pointer grab can drift from initial position
-				this.#options.y = clamp(this.#options.y - event.movementY / d, 0.0, 1.0) // TODO: clamp on read and on release, not on move
-				this.#options.x = clamp(this.#options.x - event.movementX / d, 0.0, 1.0)
+				this.#menu.y = clamp(this.#menu.y - event.movementY / d, 0.0, 1.0) // TODO: clamp on read and on release, not on move
+				this.#menu.x = clamp(this.#menu.x - event.movementX / d, 0.0, 1.0)
 
 				this.#update() // TODO: maybe rate-limit this
 
@@ -179,7 +179,7 @@ class View // TODO: maybe custom element
 
 	#url(tileId: TileId)
 	{
-		return this.#options.url
+		return this.#menu.url
 			.replaceAll("{z}", tileId.z.toString()) // FIXME: can create scientific notation
 			.replaceAll("{y}", tileId.y.toString()) // FIXME: can convert to scientific notation
 			.replaceAll("{x}", tileId.x.toString()) // FIXME: can convert to scientific notation
@@ -211,14 +211,14 @@ class View // TODO: maybe custom element
 
 		const [ye, xe] = [yo + this.#canvas.height, xo + this.#canvas.width] // TODO: make sure that this is evaluated after resize and before draw only
 
-		const [beginYscreen, beginXscreen] = [Math.floor(yo / this.#options.s), Math.floor(xo / this.#options.s)]
-		const [endYscreen, endXscreen] = [Math.ceil(ye / this.#options.s), Math.ceil(xe / this.#options.s)]
+		const [beginYscreen, beginXscreen] = [Math.floor(yo / this.#menu.s), Math.floor(xo / this.#menu.s)]
+		const [endYscreen, endXscreen] = [Math.ceil(ye / this.#menu.s), Math.ceil(xe / this.#menu.s)]
 
 		const [yc, xc] = [yo + this.#canvas.height / 2, xo + this.#canvas.width / 2] // TODO: make sure that this is evaluated after resize and before draw only
-		const [centerY, centerX] = [Math.round(yc / this.#options.s), Math.round(xc / this.#options.s)]
-		let [beginYr, beginXr] = [centerY - this.#options.r, centerX - this.#options.r]
-		let [endYr, endXr] = [centerY + this.#options.r, centerX + this.#options.r]
-		const s = TileId.size(this.#options.z)
+		const [centerY, centerX] = [Math.round(yc / this.#menu.s), Math.round(xc / this.#menu.s)]
+		let [beginYr, beginXr] = [centerY - this.#menu.r, centerX - this.#menu.r]
+		let [endYr, endXr] = [centerY + this.#menu.r, centerX + this.#menu.r]
+		const s = TileId.size(this.#menu.z)
 		// NOTE: not a problem if the values are still out of range after this adjustment
 		if (beginYr < 0)
 		{
@@ -253,7 +253,7 @@ class View // TODO: maybe custom element
 		for (let y = beginCY; y < endCY; y++)
 			for (let x = beginCX; x < endCX; x++)
 			{
-				const tileId = TileId.ZYX(this.#options.z, y, x)
+				const tileId = TileId.ZYX(this.#menu.z, y, x)
 				if (!TileId.inBounds(tileId))
 					continue // NOTE: should never be triggered
 
@@ -281,9 +281,9 @@ class View // TODO: maybe custom element
 			tile.obsolete = true
 			if (tile.image !== null || tile.error)
 			{
-				this.#options.requestsProgress.addDone(-1)
+				this.#menu.requestsProgress.addDone(-1)
 			}
-			this.#options.requestsProgress.addTotal(-1)
+			this.#menu.requestsProgress.addTotal(-1)
 		}
 
 		this.#tiles = map
@@ -304,7 +304,7 @@ class View // TODO: maybe custom element
 		{
 			this.#ctx.strokeStyle = image
 			// TODO: assert size constraints
-			this.#ctx.strokeRect(xo + 0.5, yo + 0.5, this.#options.s - 1.0, this.#options.s - 1.0)
+			this.#ctx.strokeRect(xo + 0.5, yo + 0.5, this.#menu.s - 1.0, this.#menu.s - 1.0)
 		}
 		else if (image === null) // TODO: copyable coordinates, quadkey string
 		{
@@ -342,17 +342,17 @@ class View // TODO: maybe custom element
 
 	#xOffset(tileId: TileId)
 	{
-		return this.#options.s * tileId.x
+		return this.#menu.s * tileId.x
 	}
 
 	#yOffset(tileId: TileId)
 	{
-		return this.#options.s * tileId.y
+		return this.#menu.s * tileId.y
 	}
 
 	#asyncAdd(tile: Tile)
 	{
-		this.#options.requestsProgress.addTotal(1)
+		this.#menu.requestsProgress.addTotal(1)
 
 		const image = new Image()
 		image.src = this.#url(tile.id)
@@ -364,7 +364,7 @@ class View // TODO: maybe custom element
 			if (!tile.obsolete)
 			{
 				tile.image = image
-				this.#options.requestsProgress.addDone(1)
+				this.#menu.requestsProgress.addDone(1)
 				this.#scheduleRender()
 			}
 		}
@@ -374,7 +374,7 @@ class View // TODO: maybe custom element
 			if (!tile.obsolete)
 			{
 				tile.error = true
-				this.#options.requestsProgress.addDone(1)
+				this.#menu.requestsProgress.addDone(1)
 				this.#scheduleRender()
 			}
 
@@ -386,15 +386,15 @@ class View // TODO: maybe custom element
 	#keyFor(tileId: TileId)
 	{
 		// NOTE: this.#url(tileId) is not sufficient for the case where the url template doesn't have sufficient placeholders such as url template === ""
-		return `${TileId.toString(tileId)}/${this.#options.url}`
+		return `${TileId.toString(tileId)}/${this.#menu.url}`
 	}
 
 	#getTranslation()
 	{
-		const d = this.#options.s * TileId.size(this.#options.z)
+		const d = this.#menu.s * TileId.size(this.#menu.z)
 		return [
-			Math.round(-this.#options.y * d + this.#canvas.height / 2),
-			Math.round(-this.#options.x * d + this.#canvas.width / 2),
+			Math.round(-this.#menu.y * d + this.#canvas.height / 2),
+			Math.round(-this.#menu.x * d + this.#canvas.width / 2),
 		]
 	}
 
@@ -409,7 +409,7 @@ class View // TODO: maybe custom element
 			if (tile.image !== null)
 			{
 				this.#drawTile(tile.image, tile.id, yt, xt)
-				if (this.#options.bounds)
+				if (this.#menu.bounds)
 					this.#drawTile("grey", tile.id, yt, xt)
 			}
 			else if (!tile.error)
@@ -417,15 +417,8 @@ class View // TODO: maybe custom element
 			else
 				this.#drawTile("red", tile.id, yt, xt)
 
-			if (this.#options.coords)
+			if (this.#menu.coords)
 				this.#drawTile(null, tile.id, yt, xt)
 		}
 	}
 }
-
-document.addEventListener("DOMContentLoaded", () =>
-{
-	customElements.define("anytile-options", AnytileOptions)
-
-	const view = new View(document.querySelector("anytile-options") ?? throw_("anytile-options not found"))
-})
