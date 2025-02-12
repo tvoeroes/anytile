@@ -144,6 +144,24 @@ export class AnytileView extends HTMLElement
 				this.#menu.z = this.#menu.z + 1
 		})
 
+		this.#canvas.addEventListener("wheel", event =>
+		{
+			// NOTE: the specification makes this one difficult but lets try to come up with something reasonable:
+
+			const delta = (() =>
+			{
+
+				if (event.deltaY < 0)
+					return 1
+				else if (event.deltaY > 0)
+					return -1
+				else
+					return 0
+			})()
+
+			this.#menu.z += delta
+		})
+
 		this.#activePointer = null
 
 		this.#canvas.addEventListener("pointerdown", event =>
