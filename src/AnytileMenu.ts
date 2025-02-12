@@ -1,4 +1,4 @@
-import { throw_, tryFindFreeId } from "./AnytileUtils.ts"
+import { clamp, throw_, tryFindFreeId } from "./AnytileUtils.ts"
 
 class AnytileRequestsProgress
 {
@@ -300,7 +300,11 @@ export class AnytileMenu extends HTMLElement
 
 	set y(value: number) { this.#y.value = value.toString(); this.#update() }
 	set x(value: number) { this.#x.value = value.toString(); this.#update() }
-	set z(value: number) { this.#z.value = value.toString(); this.#update() }
+	set z(value: number)
+	{
+		this.#z.value = clamp(value, parseFloat(this.#z.min), parseFloat(this.#z.max)).toString()
+		this.#update()
+	}
 	set s(value: number) { this.#s.value = value.toString(); this.#update() }
 	set callback(callback: (() => void) | null) { this.#callback = callback }
 }
