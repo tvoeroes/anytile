@@ -86,7 +86,7 @@ interface Tile
 	error: boolean
 }
 
-export class AnytileView // TODO: maybe custom element
+export class AnytileView extends HTMLElement
 {
 	#canvas: HTMLCanvasElement
 	#ctx: CanvasRenderingContext2D
@@ -102,13 +102,20 @@ export class AnytileView // TODO: maybe custom element
 
 	#menu: AnytileMenu
 
-	constructor(canvas: HTMLCanvasElement, menu: AnytileMenu) // TODO: "busy indicator" maybe spinner, maybe some red/green light
+	constructor(menu: AnytileMenu) // TODO: "busy indicator" maybe spinner, maybe some red/green light
 	{
+		super()
+
+		const root = this
+
+		this.#canvas = document.createElement("canvas")
+		this.#canvas.setAttribute("tabindex", "0") // NOTE: tabindex="0" makes key events work on canvas
+		root.appendChild(this.#canvas)
+
 		this.#menu = menu
 
 		this.#tileSetFlip = false
 
-		this.#canvas = canvas
 		// TODO: handle window.devicePixelRatio !== 1 ???
 		this.#resizeObserver = new ResizeObserver((entries, observer) =>
 		{
