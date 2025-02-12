@@ -86,7 +86,7 @@ interface Tile
 	error: boolean
 }
 
-export class AnytileView // TODO: maybe custom element
+export class AnytileView extends HTMLElement
 {
 	#canvas: HTMLCanvasElement
 	#ctx: CanvasRenderingContext2D
@@ -102,13 +102,20 @@ export class AnytileView // TODO: maybe custom element
 
 	#menu: AnytileMenu
 
-	constructor(canvas: HTMLCanvasElement, menu: AnytileMenu) // TODO: "busy indicator" maybe spinner, maybe some red/green light
+	constructor(menu: AnytileMenu) // TODO: "busy indicator" maybe spinner, maybe some red/green light
 	{
+		super()
+
+		const root = this
+
+		this.#canvas = document.createElement("canvas")
+		this.#canvas.setAttribute("tabindex", "0") // NOTE: tabindex="0" makes key events work on canvas
+		root.appendChild(this.#canvas)
+
 		this.#menu = menu
 
 		this.#tileSetFlip = false
 
-		this.#canvas = canvas
 		// TODO: handle window.devicePixelRatio !== 1 ???
 		this.#resizeObserver = new ResizeObserver((entries, observer) =>
 		{
@@ -135,6 +142,24 @@ export class AnytileView // TODO: maybe custom element
 				this.#menu.z = this.#menu.z - 1
 			else if (event.code === "KeyE")
 				this.#menu.z = this.#menu.z + 1
+		})
+
+		this.#canvas.addEventListener("wheel", event =>
+		{
+			// NOTE: the specification makes this one difficult but lets try to come up with something reasonable:
+
+			const delta = (() =>
+			{
+
+				if (event.deltaY < 0)
+					return 1
+				else if (event.deltaY > 0)
+					return -1
+				else
+					return 0
+			})()
+
+			this.#menu.z += delta
 		})
 
 		this.#activePointer = null
@@ -211,8 +236,8 @@ export class AnytileView // TODO: maybe custom element
 
 		const [ye, xe] = [yo + this.#canvas.height, xo + this.#canvas.width] // TODO: make sure that this is evaluated after resize and before draw only
 
-		const [beginYscreen, beginXscreen] = [Math.floor(yo / this.#menu.s), Math.floor(xo / this.#menu.s)]
-		const [endYscreen, endXscreen] = [Math.ceil(ye / this.#menu.s), Math.ceil(xe / this.#menu.s)]
+		const [beginYScreen, beginXScreen] = [Math.floor(yo / this.#menu.s), Math.floor(xo / this.#menu.s)]
+		const [endYScreen, endXScreen] = [Math.ceil(ye / this.#menu.s), Math.ceil(xe / this.#menu.s)]
 
 		const [yc, xc] = [yo + this.#canvas.height / 2, xo + this.#canvas.width / 2] // TODO: make sure that this is evaluated after resize and before draw only
 		const [centerY, centerX] = [Math.round(yc / this.#menu.s), Math.round(xc / this.#menu.s)]
@@ -242,8 +267,8 @@ export class AnytileView // TODO: maybe custom element
 			endXr -= endXr - s
 		}
 
-		const [beginY, beginX] = [Math.max(beginYscreen, beginYr), Math.max(beginXscreen, beginXr)]
-		const [endY, endX] = [Math.min(endYscreen, endYr), Math.min(endXscreen, endXr)]
+		const [beginY, beginX] = [Math.max(beginYScreen, beginYr), Math.max(beginXScreen, beginXr)]
+		const [endY, endX] = [Math.min(endYScreen, endYr), Math.min(endXScreen, endXr)]
 
 		const [beginCY, beginCX] = [clamp(beginY, 0, s), clamp(beginX, 0, s)]
 		const [endCY, endCX] = [clamp(endY, 0, s), clamp(endX, 0, s)]
@@ -359,16 +384,6 @@ export class AnytileView // TODO: maybe custom element
 
 		// TODO: rate-limit
 
-		const success = () =>
-		{
-			if (!tile.obsolete)
-			{
-				tile.image = image
-				this.#menu.requestsProgress.addDone(1)
-				this.#scheduleRender()
-			}
-		}
-
 		const failure = () =>
 		{
 			if (!tile.obsolete)
@@ -377,7 +392,29 @@ export class AnytileView // TODO: maybe custom element
 				this.#menu.requestsProgress.addDone(1)
 				this.#scheduleRender()
 			}
+		}
 
+		const success = () =>
+		{
+			if (!tile.obsolete)
+			{
+				// TODO: implement non square support
+				if (image.width !== image.height || image.width === 0)
+				{
+					failure()
+					return
+				}
+
+				const s = image.width
+				if (this.#menu.s !== s)
+					// TODO: more robust way of determining the size
+					// TODO: support tiles with overlap (e.g. corner sampled images)
+					this.#menu.s = s
+
+				tile.image = image
+				this.#menu.requestsProgress.addDone(1)
+				this.#scheduleRender()
+			}
 		}
 
 		image.decode().then(success).catch(failure)

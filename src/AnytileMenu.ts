@@ -1,4 +1,4 @@
-import { throw_, tryFindFreeId } from "./AnytileUtils.ts"
+import { clamp, throw_, tryFindFreeId } from "./AnytileUtils.ts"
 
 class AnytileRequestsProgress
 {
@@ -119,7 +119,7 @@ export class AnytileMenu extends HTMLElement
 		this.#y = document.createElement("input")
 		this.#y.type = "number"
 		this.#y.value = "0.5"
-		this.#y.step = "1"
+		this.#y.step = (Math.pow(2, 31)).toString() // whatever, make sure that the box is wide
 		this.#y.min = "0"
 		this.#y.max = "1"
 		this.#y.readOnly = true
@@ -130,11 +130,20 @@ export class AnytileMenu extends HTMLElement
 		this.#x = document.createElement("input")
 		this.#x.type = "number"
 		this.#x.value = "0.5"
-		this.#x.step = "1"
+		this.#x.step = (Math.pow(2, 31)).toString() // whatever, make sure that the box is wide
 		this.#x.min = "0"
 		this.#x.max = "1"
 		this.#x.readOnly = true
 		tweakable("x", this.#x)
+
+		space()
+
+		this.#s = document.createElement("input")
+		this.#s.type = "number"
+		this.#s.value = "64"
+		this.#s.step = "1"
+		this.#s.readOnly = true
+		tweakable("s", this.#s)
 
 		space()
 
@@ -157,16 +166,6 @@ export class AnytileMenu extends HTMLElement
 		this.#z.min = "0"
 		this.#z.max = "31"
 		tweakable("z", this.#z)
-
-		space()
-
-		this.#s = document.createElement("input")
-		this.#s.type = "number"
-		this.#s.value = "256"
-		this.#s.step = "1"
-		this.#s.min = "1"
-		this.#s.max = "2048"
-		tweakable("s", this.#s)
 
 		space()
 
@@ -301,6 +300,11 @@ export class AnytileMenu extends HTMLElement
 
 	set y(value: number) { this.#y.value = value.toString(); this.#update() }
 	set x(value: number) { this.#x.value = value.toString(); this.#update() }
-	set z(value: number) { this.#z.value = value.toString(); this.#update() }
+	set z(value: number)
+	{
+		this.#z.value = clamp(value, parseFloat(this.#z.min), parseFloat(this.#z.max)).toString()
+		this.#update()
+	}
+	set s(value: number) { this.#s.value = value.toString(); this.#update() }
 	set callback(callback: (() => void) | null) { this.#callback = callback }
 }
