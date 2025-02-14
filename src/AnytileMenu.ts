@@ -191,6 +191,15 @@ export class AnytileMenu extends HTMLElement
 		this.#coords.checked = false
 		tweakable("coords", this.#coords)
 
+		space()
+
+		{
+			const linkToSource = document.createElement("a")
+			linkToSource.innerText = "Source"
+			linkToSource.href = "https://github.com/tvoeroes/anytile"
+			root.appendChild(linkToSource)
+		}
+
 		br()
 
 		this.#url = document.createElement("input")
