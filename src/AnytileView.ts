@@ -102,6 +102,9 @@ export class AnytileView extends HTMLElement
 
 	#menu: AnytileMenu
 
+	#pointerY: number = 0
+	#pointerX: number = 0
+
 	constructor(menu: AnytileMenu) // TODO: "busy indicator" maybe spinner, maybe some red/green light
 	{
 		super()
@@ -138,10 +141,20 @@ export class AnytileView extends HTMLElement
 
 		this.#canvas.addEventListener("keydown", event =>
 		{
-			if (event.code === "KeyQ")
-				this.#menu.z = this.#menu.z - 1
-			else if (event.code === "KeyE")
-				this.#menu.z = this.#menu.z + 1
+			const delta = (() =>
+			{
+				if (event.code === "KeyE")
+					return 1
+				else if (event.code === "KeyQ")
+					return -1
+				else
+					return 0
+			})()
+
+			if (delta === 0)
+				return
+
+			this.#updateZoom(delta)
 		})
 
 		this.#canvas.addEventListener("wheel", event =>
@@ -150,7 +163,6 @@ export class AnytileView extends HTMLElement
 
 			const delta = (() =>
 			{
-
 				if (event.deltaY < 0)
 					return 1
 				else if (event.deltaY > 0)
@@ -159,7 +171,10 @@ export class AnytileView extends HTMLElement
 					return 0
 			})()
 
-			this.#menu.z += delta
+			if (delta === 0)
+				return
+
+			this.#updateZoom(delta)
 		})
 
 		this.#activePointer = null
@@ -184,6 +199,9 @@ export class AnytileView extends HTMLElement
 
 		this.#canvas.addEventListener("pointermove", event =>
 		{
+			this.#pointerY = event.offsetY
+			this.#pointerX = event.offsetX
+
 			if (this.#activePointer === event.pointerId)
 			{
 				const d = this.#menu.s * TileId.size(this.#menu.z)
@@ -200,6 +218,39 @@ export class AnytileView extends HTMLElement
 
 		this.#update()
 		this.#scheduleRender()
+	}
+
+	#updateZoom(delta: number)
+	{
+		if (delta === 0)
+			return
+
+		// TODO: verify ALL math in this tool to be pixel-exact (not just this function)
+		// TODO: check that the formula is correct for abs(delta) !== 1
+
+		const d = this.#menu.s * TileId.size(this.#menu.z)
+		const translation = this.#getTranslation()
+
+		const pointerNormalized = [
+			(this.#pointerY - translation[0]) / d,
+			(this.#pointerX - translation[1]) / d,
+		]
+
+		const pointerRelative = [
+			pointerNormalized[0] - this.#menu.y,
+			pointerNormalized[1] - this.#menu.x,
+		]
+
+		const scale = Math.pow(2, -delta);
+
+		const pointerRelativeZoomed = [
+			pointerRelative[0] / Math.pow(2, delta),
+			pointerRelative[1] / Math.pow(2, delta),
+		]
+
+		this.#menu.z += delta
+		this.#menu.y -= pointerRelativeZoomed[0] - pointerRelative[0]
+		this.#menu.x -= pointerRelativeZoomed[1] - pointerRelative[1]
 	}
 
 	#url(tileId: TileId)
