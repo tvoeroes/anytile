@@ -84,6 +84,7 @@ interface Tile
 	image: HTMLImageElement | null
 	obsolete: boolean
 	error: boolean
+	requested: boolean
 }
 
 export class AnytileView extends HTMLElement
@@ -104,6 +105,9 @@ export class AnytileView extends HTMLElement
 
 	#pointerY: number = 0
 	#pointerX: number = 0
+
+	#toBeRequested: Tile[] = []
+	#inFlight: number = 0
 
 	constructor(menu: AnytileMenu) // TODO: "busy indicator" maybe spinner, maybe some red/green light
 	{
@@ -342,27 +346,30 @@ export class AnytileView extends HTMLElement
 				}
 				else
 				{
-					const tile = { id: tileId, image: null, obsolete: false, error: false }
+					const tile = { id: tileId, image: null, obsolete: false, error: false, requested: false }
 					toBeRequested.push(tile)
 					map.set(key, tile)
 				}
 			}
 
-		// TODO: sort by distance to center
-		for (const tile of toBeRequested)
-			this.#asyncAdd(tile) // TODO: rate-limit a.k.a. delay concurrent requests
-
 		for (const [_, tile] of this.#tiles)
 		{
 			tile.obsolete = true
-			if (tile.image !== null || tile.error)
+			if (tile.requested)
 			{
-				this.#menu.requestsProgress.addDone(-1)
+				if (tile.image !== null || tile.error)
+					this.#menu.requestsProgress.addDone(-1)
+				this.#menu.requestsProgress.addTotal(-1)
 			}
-			this.#menu.requestsProgress.addTotal(-1)
 		}
 
 		this.#tiles = map
+
+		this.#toBeRequested = this.#toBeRequested.filter(tile => !tile.obsolete)
+
+		this.#toBeRequested = toBeRequested.concat(this.#toBeRequested)
+
+		this.#tryAddAsyncNext()
 	}
 
 	#clear()
@@ -426,8 +433,33 @@ export class AnytileView extends HTMLElement
 		return this.#menu.s * tileId.y
 	}
 
-	#asyncAdd(tile: Tile)
+	#tryAddAsyncNext()
 	{
+		// The value is guessed as being a good trade-off. Having pending
+		// requests allows for convenient obsolete request cancellation and
+		// browsers limit the number of concurrent requests per domain anyway.
+		const concurrency = 6
+
+		while (this.#inFlight < concurrency)
+		{
+			const tile = this.#toBeRequested.pop()
+			if (tile === undefined)
+				return
+
+			console.assert(!tile.obsolete)
+			if (tile.obsolete)
+				continue
+
+			this.#asyncAddNext(tile)
+		}
+	}
+
+	#asyncAddNext(tile: Tile)
+	{
+		this.#inFlight += 1
+		tile.requested = true
+
+		// FIXME: requestsProgress should always represent the progress of all visible tiles
 		this.#menu.requestsProgress.addTotal(1)
 
 		const image = new Image()
@@ -451,10 +483,7 @@ export class AnytileView extends HTMLElement
 			{
 				// TODO: implement non square support
 				if (image.width !== image.height || image.width === 0)
-				{
-					failure()
-					return
-				}
+					return failure()
 
 				const s = image.width
 				if (this.#menu.s !== s)
@@ -468,7 +497,13 @@ export class AnytileView extends HTMLElement
 			}
 		}
 
-		image.decode().then(success).catch(failure)
+		const done = () =>
+		{
+			this.#inFlight -= 1
+			this.#tryAddAsyncNext()
+		}
+
+		image.decode().then(success).catch(failure).finally(done)
 	}
 
 	#keyFor(tileId: TileId)

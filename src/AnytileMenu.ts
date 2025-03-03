@@ -10,8 +10,8 @@ class AnytileRequestsProgress
 
 	addTotal(n: number) { this.#total += n; this.#update() }
 	addDone(n: number) { this.#done += n; this.#update() }
-	reset() { this.#total = 0; this.#done = 0; this.#update() }
 	status() { return this.#total == 0 ? 1.0 : this.#done / this.#total }
+	remaining() { return this.#total - this.#done; }
 
 	#total: number = 0
 	#done: number = 0
