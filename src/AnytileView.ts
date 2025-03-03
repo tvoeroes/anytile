@@ -76,6 +76,23 @@ class TileId
 
 		return quadkey
 	}
+
+	static squaredDistanceToPoint(normalizedPoint: [number, number], tileId: TileId)
+	{
+		const s = TileId.size(tileId.z)
+
+		const yx = [
+			(tileId.y + 0.5) / s,
+			(tileId.x + 0.5) / s,
+		]
+
+		const diff = [
+			yx[0] - normalizedPoint[0],
+			yx[1] - normalizedPoint[1],
+		]
+
+		return diff[0] * diff[0] + diff[1] * diff[1]
+	}
 }
 
 interface Tile
@@ -84,6 +101,7 @@ interface Tile
 	image: HTMLImageElement | null
 	obsolete: boolean
 	error: boolean
+	requested: boolean
 }
 
 export class AnytileView extends HTMLElement
@@ -101,6 +119,12 @@ export class AnytileView extends HTMLElement
 	#resizeObserver: ResizeObserver
 
 	#menu: AnytileMenu
+
+	#pointerY: number = 0
+	#pointerX: number = 0
+
+	#toBeRequested: Tile[] = []
+	#inFlight: number = 0
 
 	constructor(menu: AnytileMenu) // TODO: "busy indicator" maybe spinner, maybe some red/green light
 	{
@@ -138,10 +162,20 @@ export class AnytileView extends HTMLElement
 
 		this.#canvas.addEventListener("keydown", event =>
 		{
-			if (event.code === "KeyQ")
-				this.#menu.z = this.#menu.z - 1
-			else if (event.code === "KeyE")
-				this.#menu.z = this.#menu.z + 1
+			const delta = (() =>
+			{
+				if (event.code === "KeyE")
+					return 1
+				else if (event.code === "KeyQ")
+					return -1
+				else
+					return 0
+			})()
+
+			if (delta === 0)
+				return
+
+			this.#updateZoom(delta)
 		})
 
 		this.#canvas.addEventListener("wheel", event =>
@@ -150,7 +184,6 @@ export class AnytileView extends HTMLElement
 
 			const delta = (() =>
 			{
-
 				if (event.deltaY < 0)
 					return 1
 				else if (event.deltaY > 0)
@@ -159,7 +192,10 @@ export class AnytileView extends HTMLElement
 					return 0
 			})()
 
-			this.#menu.z += delta
+			if (delta === 0)
+				return
+
+			this.#updateZoom(delta)
 		})
 
 		this.#activePointer = null
@@ -184,6 +220,9 @@ export class AnytileView extends HTMLElement
 
 		this.#canvas.addEventListener("pointermove", event =>
 		{
+			this.#pointerY = event.offsetY
+			this.#pointerX = event.offsetX
+
 			if (this.#activePointer === event.pointerId)
 			{
 				const d = this.#menu.s * TileId.size(this.#menu.z)
@@ -200,6 +239,39 @@ export class AnytileView extends HTMLElement
 
 		this.#update()
 		this.#scheduleRender()
+	}
+
+	#updateZoom(delta: number)
+	{
+		if (delta === 0)
+			return
+
+		// TODO: verify ALL math in this tool to be pixel-exact (not just this function)
+		// TODO: check that the formula is correct for abs(delta) !== 1
+
+		const d = this.#menu.s * TileId.size(this.#menu.z)
+		const translation = this.#getTranslation()
+
+		const pointerNormalized = [
+			(this.#pointerY - translation[0]) / d,
+			(this.#pointerX - translation[1]) / d,
+		]
+
+		const pointerRelative = [
+			pointerNormalized[0] - this.#menu.y,
+			pointerNormalized[1] - this.#menu.x,
+		]
+
+		const scale = Math.pow(2, -delta);
+
+		const pointerRelativeZoomed = [
+			pointerRelative[0] / Math.pow(2, delta),
+			pointerRelative[1] / Math.pow(2, delta),
+		]
+
+		this.#menu.z += delta
+		this.#menu.y -= pointerRelativeZoomed[0] - pointerRelative[0]
+		this.#menu.x -= pointerRelativeZoomed[1] - pointerRelative[1]
 	}
 
 	#url(tileId: TileId)
@@ -291,27 +363,40 @@ export class AnytileView extends HTMLElement
 				}
 				else
 				{
-					const tile = { id: tileId, image: null, obsolete: false, error: false }
+					const tile = { id: tileId, image: null, obsolete: false, error: false, requested: false }
 					toBeRequested.push(tile)
 					map.set(key, tile)
 				}
 			}
 
-		// TODO: sort by distance to center
-		for (const tile of toBeRequested)
-			this.#asyncAdd(tile) // TODO: rate-limit a.k.a. delay concurrent requests
-
 		for (const [_, tile] of this.#tiles)
 		{
 			tile.obsolete = true
-			if (tile.image !== null || tile.error)
+			if (tile.requested)
 			{
-				this.#menu.requestsProgress.addDone(-1)
+				if (tile.image !== null || tile.error)
+					this.#menu.requestsProgress.addDone(-1)
+				this.#menu.requestsProgress.addTotal(-1)
 			}
-			this.#menu.requestsProgress.addTotal(-1)
 		}
 
 		this.#tiles = map
+
+		this.#toBeRequested = this.#toBeRequested.filter(tile => !tile.obsolete)
+
+		this.#toBeRequested = toBeRequested.concat(this.#toBeRequested)
+
+		const center: [number, number] = [
+			this.#menu.y,
+			this.#menu.x,
+		]
+
+		this.#toBeRequested.sort((a, b) =>
+		{
+			return TileId.squaredDistanceToPoint(center, b.id) - TileId.squaredDistanceToPoint(center, a.id)
+		})
+
+		this.#tryAddAsyncNext()
 	}
 
 	#clear()
@@ -375,8 +460,33 @@ export class AnytileView extends HTMLElement
 		return this.#menu.s * tileId.y
 	}
 
-	#asyncAdd(tile: Tile)
+	#tryAddAsyncNext()
 	{
+		// The value is guessed as being a good trade-off. Having pending
+		// requests allows for convenient obsolete request cancellation and
+		// browsers limit the number of concurrent requests per domain anyway.
+		const concurrency = 6
+
+		while (this.#inFlight < concurrency)
+		{
+			const tile = this.#toBeRequested.pop()
+			if (tile === undefined)
+				return
+
+			console.assert(!tile.obsolete)
+			if (tile.obsolete)
+				continue
+
+			this.#asyncAddNext(tile)
+		}
+	}
+
+	#asyncAddNext(tile: Tile)
+	{
+		this.#inFlight += 1
+		tile.requested = true
+
+		// FIXME: requestsProgress should always represent the progress of all visible tiles
 		this.#menu.requestsProgress.addTotal(1)
 
 		const image = new Image()
@@ -400,10 +510,7 @@ export class AnytileView extends HTMLElement
 			{
 				// TODO: implement non square support
 				if (image.width !== image.height || image.width === 0)
-				{
-					failure()
-					return
-				}
+					return failure()
 
 				const s = image.width
 				if (this.#menu.s !== s)
@@ -417,7 +524,13 @@ export class AnytileView extends HTMLElement
 			}
 		}
 
-		image.decode().then(success).catch(failure)
+		const done = () =>
+		{
+			this.#inFlight -= 1
+			this.#tryAddAsyncNext()
+		}
+
+		image.decode().then(success).catch(failure).finally(done)
 	}
 
 	#keyFor(tileId: TileId)
