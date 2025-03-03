@@ -76,6 +76,23 @@ class TileId
 
 		return quadkey
 	}
+
+	static squaredDistanceToPoint(normalizedPoint: [number, number], tileId: TileId)
+	{
+		const s = TileId.size(tileId.z)
+
+		const yx = [
+			(tileId.y + 0.5) / s,
+			(tileId.x + 0.5) / s,
+		]
+
+		const diff = [
+			yx[0] - normalizedPoint[0],
+			yx[1] - normalizedPoint[1],
+		]
+
+		return diff[0] * diff[0] + diff[1] * diff[1]
+	}
 }
 
 interface Tile
@@ -368,6 +385,16 @@ export class AnytileView extends HTMLElement
 		this.#toBeRequested = this.#toBeRequested.filter(tile => !tile.obsolete)
 
 		this.#toBeRequested = toBeRequested.concat(this.#toBeRequested)
+
+		const center: [number, number] = [
+			this.#menu.y,
+			this.#menu.x,
+		]
+
+		this.#toBeRequested.sort((a, b) =>
+		{
+			return TileId.squaredDistanceToPoint(center, b.id) - TileId.squaredDistanceToPoint(center, a.id)
+		})
 
 		this.#tryAddAsyncNext()
 	}
