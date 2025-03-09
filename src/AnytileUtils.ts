@@ -18,3 +18,8 @@ export function tryFindFreeId(prefix: string): string | null
 	}
 	return null
 }
+
+export function unreachable_(_: never): never
+{
+	throw_("Reached unreachable code.")
+}
