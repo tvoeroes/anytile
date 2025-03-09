@@ -82,6 +82,15 @@ export class AnytileMenu extends HTMLElement
 		})
 		root.appendChild(resetButton)
 
+		space()
+
+		{
+			const linkToSource = document.createElement("a")
+			linkToSource.innerText = "Source"
+			linkToSource.href = "https://github.com/tvoeroes/anytile"
+			root.appendChild(linkToSource)
+		}
+
 		br()
 
 		this.#url = document.createElement("input")
