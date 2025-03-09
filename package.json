@@ -2,10 +2,13 @@
   "name": "anytile",
   "source": "src/index.html",
   "scripts": {
-    "dev": "parcel",
-    "build": "parcel build --no-source-maps --public-url ."
+    "dev": "parcel serve",
+    "build": "node deleteDist.js && parcel build --no-source-maps --public-url . && node copyStaticFiles.js"
   },
   "devDependencies": {
-    "parcel": "^2.13.3"
+    "cesium": "1.127.0",
+    "parcel": "^2.13.3",
+    "serve-static": "^1.16.2",
+    "shelljs": "^0.8.5"
   }
 }

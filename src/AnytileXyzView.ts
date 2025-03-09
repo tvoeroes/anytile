@@ -1,5 +1,5 @@
-import { AnytileMenu } from "./AnytileMenu.ts"
 import { throw_, clamp } from "./AnytileUtils.ts"
+import { AnytileXyzMenu } from "./AnytileXyzMenu.ts"
 
 class TileId
 {
@@ -104,7 +104,7 @@ interface Tile
 	requested: boolean
 }
 
-export class AnytileView extends HTMLElement
+export class AnytileXyzView extends HTMLElement
 {
 	#canvas: HTMLCanvasElement
 	#ctx: CanvasRenderingContext2D
@@ -118,7 +118,8 @@ export class AnytileView extends HTMLElement
 
 	#resizeObserver: ResizeObserver
 
-	#menu: AnytileMenu
+	#url_: string = ""
+	#menu: AnytileXyzMenu
 
 	#pointerY: number = 0
 	#pointerX: number = 0
@@ -126,7 +127,7 @@ export class AnytileView extends HTMLElement
 	#toBeRequested: Tile[] = []
 	#inFlight: number = 0
 
-	constructor(menu: AnytileMenu) // TODO: "busy indicator" maybe spinner, maybe some red/green light
+	constructor(menu: AnytileXyzMenu) // TODO: "busy indicator" maybe spinner, maybe some red/green light
 	{
 		super()
 
@@ -158,7 +159,7 @@ export class AnytileView extends HTMLElement
 
 		this.#ctx = this.#canvas.getContext("2d") ?? throw_("Failed to initialize 2d rendering context.")
 
-		this.#menu.callback = () => { this.#update(); this.#scheduleRender() }
+		this.#menu.callback = () => this.#onUpdate()
 
 		this.#canvas.addEventListener("keydown", event =>
 		{
@@ -241,6 +242,18 @@ export class AnytileView extends HTMLElement
 		this.#scheduleRender()
 	}
 
+	#onUpdate()
+	{
+		this.#update()
+		this.#scheduleRender()
+	}
+
+	setUrl(url: string)
+	{
+		this.#url_ = url
+		this.#onUpdate()
+	}
+
 	#updateZoom(delta: number)
 	{
 		if (delta === 0)
@@ -276,7 +289,7 @@ export class AnytileView extends HTMLElement
 
 	#url(tileId: TileId)
 	{
-		return this.#menu.url
+		return this.#url_
 			.replaceAll("{z}", tileId.z.toString()) // FIXME: can create scientific notation
 			.replaceAll("{y}", tileId.y.toString()) // FIXME: can convert to scientific notation
 			.replaceAll("{x}", tileId.x.toString()) // FIXME: can convert to scientific notation
@@ -536,7 +549,7 @@ export class AnytileView extends HTMLElement
 	#keyFor(tileId: TileId)
 	{
 		// NOTE: this.#url(tileId) is not sufficient for the case where the url template doesn't have sufficient placeholders such as url template === ""
-		return `${TileId.toString(tileId)}/${this.#menu.url}`
+		return `${TileId.toString(tileId)}/${this.#url_}`
 	}
 
 	#getTranslation()
