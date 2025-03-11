@@ -7,7 +7,7 @@ class CesiumModuleLoader
 	{
 		if (CesiumModuleLoader.#module === null)
 		{
-			(window as any).CESIUM_BASE_URL = "/cesium"
+			(window as any).CESIUM_BASE_URL = "./cesium"
 
 			const moduleAndCss = await Promise.all([import("cesium"), import("cesium/Build/Cesium/Widgets/widgets.css")])
 
