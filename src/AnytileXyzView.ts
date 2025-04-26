@@ -228,7 +228,7 @@ export class AnytileXyzView extends HTMLElement
 			{
 				const d = this.#menu.s * TileId.size(this.#menu.z)
 
-				// FIXME: looks like, especially on z=0 it looks like pointer grab can drift from initial position
+				// FIXME: looks like pointer grab can drift from initial position, especially on z=0
 				this.#menu.y = clamp(this.#menu.y - event.movementY / d, 0.0, 1.0) // TODO: clamp on read and on release, not on move
 				this.#menu.x = clamp(this.#menu.x - event.movementX / d, 0.0, 1.0)
 

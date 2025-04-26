@@ -1,4 +1,5 @@
 import { throw_, tryFindFreeId } from "./AnytileUtils.ts"
+import { MenuBuilding } from "./MenuBuilding.ts"
 
 export class AnytileMenu extends HTMLElement
 {
@@ -13,64 +14,7 @@ export class AnytileMenu extends HTMLElement
 
 		const root = this
 
-		const br = () =>
-		{
-			root.appendChild(document.createElement("br"))
-		}
-
-		const space = () =>
-		{
-			root.appendChild(document.createTextNode(" "))
-		}
-
-		const entry = (name: string, element: HTMLElement) =>
-		{
-			const label = root.appendChild(document.createElement("label"))
-			label.appendChild(document.createTextNode(`${name} = `))
-			label.appendChild(element)
-			root.appendChild(label)
-		}
-
-		const tweakable = (name: string, element: HTMLInputElement) =>
-		{
-			const storeKey = localStorageKeyPrefix + name
-			const value = localStorage.getItem(storeKey)
-			entry(name, element)
-
-			// setup watch
-			if (element.type === "checkbox")
-				element.addEventListener("change", () => this.#update())
-			else
-				element.addEventListener("input", () => this.#update())
-
-			// setup save
-			if (element.type === "checkbox")
-				this.#saveOps.push((reset: boolean) =>
-				{
-					if (reset)
-						localStorage.removeItem(storeKey)
-					else
-						localStorage.setItem(storeKey, element.checked.toString())
-				})
-			else
-				this.#saveOps.push((reset: boolean) =>
-				{
-					if (reset)
-						localStorage.removeItem(storeKey)
-					else
-						localStorage.setItem(storeKey, element.value)
-
-				})
-
-			// load
-			if (value !== null)
-			{
-				if (element.type === "checkbox")
-					element.checked = value === "true" ? true : false
-				else
-					element.value = value
-			}
-		}
+		const updateCallback = () => this.#update()
 
 		const resetButton = document.createElement("button")
 		resetButton.type = "button"
@@ -82,7 +26,7 @@ export class AnytileMenu extends HTMLElement
 		})
 		root.appendChild(resetButton)
 
-		space()
+		MenuBuilding.space(root)
 
 		{
 			const linkToSource = document.createElement("a")
@@ -91,13 +35,13 @@ export class AnytileMenu extends HTMLElement
 			root.appendChild(linkToSource)
 		}
 
-		br()
+		MenuBuilding.br(root)
 
 		this.#url = document.createElement("input")
 		this.#url.type = "text"
 		this.#url.value = ""
 		this.#url.size = 48
-		tweakable("url", this.#url)
+		MenuBuilding.tweakable(root, localStorageKeyPrefix, "url", this.#url, updateCallback, this.#saveOps)
 
 		const datalist = document.createElement("datalist")
 
@@ -146,7 +90,7 @@ export class AnytileMenu extends HTMLElement
 			root.appendChild(datalist)
 		}
 
-		space()
+		MenuBuilding.space(root)
 
 		const saveButton = document.createElement("button")
 		saveButton.type = "button"
@@ -158,12 +102,12 @@ export class AnytileMenu extends HTMLElement
 				addDatalistEntry(value)
 		})
 		root.appendChild(saveButton)
+	}
 
-		window.addEventListener("beforeunload", () =>
-		{
-			for (const saveOp of this.#saveOps)
-				saveOp(this.#doReset)
-		})
+	saveOptions(reset: boolean)
+	{
+		for (const saveOp of this.#saveOps)
+			saveOp(reset)
 	}
 
 	connectedCallback()
@@ -190,4 +134,5 @@ export class AnytileMenu extends HTMLElement
 
 	get url() { return this.#url.value }
 	set callback(callback: (() => void) | null) { this.#callback = callback }
+	get doReset() { return this.#doReset }
 }
