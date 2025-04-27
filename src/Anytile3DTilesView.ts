@@ -1,3 +1,5 @@
+import { Anytile3DTilesMenu } from "./Anytile3DTilesMenu.ts"
+
 class CesiumModuleLoader
 {
 	static #module: typeof import("cesium") | null = null
@@ -25,16 +27,22 @@ export class Anytile3DTilesView extends HTMLElement
 {
 	#viewer: any /* Cesium.Viewer */
 	#Cesium: any = null /* Cesium | null */
-	#nextUrl: string | null = null
+	#url: string = ""
 	#updating: boolean = false
+	#dirty: boolean = false
 
-	constructor()
+	#menu: Anytile3DTilesMenu
+
+	constructor(menu: Anytile3DTilesMenu)
 	{
 		super()
 
 		const root = this
 
-		this.#updating = true
+		this.#menu = menu
+		this.#menu.callback = () => this.#onUpdate()
+
+		this.#updating = true // FIXME: an exception in get() will not set this to false
 		CesiumModuleLoader.get()
 			.then(Cesium =>
 			{
@@ -54,6 +62,12 @@ export class Anytile3DTilesView extends HTMLElement
 				// this application is not using cesium ion services
 				const cesiumIonCreditContainer = this.#viewer.cesiumWidget.creditContainer
 				cesiumIonCreditContainer.parentElement?.removeChild(cesiumIonCreditContainer)
+
+				if (this.#menu.with3dTilesInspector)
+				{
+					this.#viewer.extend(this.#Cesium.viewerCesium3DTilesInspectorMixin);
+					this.#viewer.cesium3DTilesInspector.viewModel.picking = false;
+				}
 			})
 			.finally(() =>
 			{
@@ -64,19 +78,36 @@ export class Anytile3DTilesView extends HTMLElement
 
 	#tryLoad()
 	{
-		if (this.#nextUrl === null || this.#updating)
+		if (!this.#dirty || this.#updating)
 			return
 
-		const url = this.#nextUrl
-		this.#nextUrl = null
+		this.#dirty = false
 
-		this.#updating = true
+		const haveInspector = this.#viewer.cesium3DTilesInspector !== undefined
+
+
+		if (haveInspector !== this.#menu.with3dTilesInspector)
+		{
+			window.location.reload()
+			return
+		}
+
+		if (haveInspector)
+			this.#viewer.cesium3DTilesInspector.viewModel.tileset = undefined
+
 		this.#viewer.scene.primitives.removeAll()
-		this.#Cesium.Cesium3DTileset.fromUrl(url)
+		this.#updating = true // FIXME: an exception in fromUrl() will not set this to false
+		this.#Cesium.Cesium3DTileset.fromUrl(
+			this.#url,
+			{ enableDebugWireframe: haveInspector }
+		)
 			.then((tileset: any) =>
 			{
 				this.#viewer.scene.primitives.add(tileset)
 				this.#viewer.zoomTo(tileset)
+
+				if (haveInspector)
+					this.#viewer.cesium3DTilesInspector.viewModel.tileset = tileset
 			})
 			.finally(() =>
 			{
@@ -87,7 +118,14 @@ export class Anytile3DTilesView extends HTMLElement
 
 	setUrl(url: string)
 	{
-		this.#nextUrl = url
+		this.#url = url
+		this.#dirty = true
+		this.#tryLoad()
+	}
+
+	#onUpdate()
+	{
+		this.#dirty = true
 		this.#tryLoad()
 	}
 }

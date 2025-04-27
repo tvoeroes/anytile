@@ -1,4 +1,5 @@
 import { clamp, throw_, tryFindFreeId } from "./AnytileUtils.ts"
+import { MenuBuilding } from "./MenuBuilding.ts"
 
 class AnytileRequestsProgress
 {
@@ -41,7 +42,6 @@ export class AnytileXyzMenu extends HTMLElement
 	#callback: (() => void) | null = null
 	#saveOps: ((reset: boolean) => void)[] = []
 	#resetButton: HTMLButtonElement
-	#doReset: boolean = false
 
 	constructor(localStorageKeyPrefix: string)
 	{
@@ -49,71 +49,14 @@ export class AnytileXyzMenu extends HTMLElement
 
 		const root = this
 
-		const br = () =>
-		{
-			root.appendChild(document.createElement("br"))
-		}
-
-		const space = () =>
-		{
-			root.appendChild(document.createTextNode(" "))
-		}
-
-		const entry = (name: string, element: HTMLElement) =>
-		{
-			const label = root.appendChild(document.createElement("label"))
-			label.appendChild(document.createTextNode(`${name} = `))
-			label.appendChild(element)
-			root.appendChild(label)
-		}
-
-		const tweakable = (name: string, element: HTMLInputElement) =>
-		{
-			const storeKey = localStorageKeyPrefix + name
-			const value = localStorage.getItem(storeKey)
-			entry(name, element)
-
-			// setup watch
-			if (element.type === "checkbox")
-				element.addEventListener("change", () => this.#update())
-			else
-				element.addEventListener("input", () => this.#update())
-
-			// setup save
-			if (element.type === "checkbox")
-				this.#saveOps.push((reset: boolean) =>
-				{
-					if (reset)
-						localStorage.removeItem(storeKey)
-					else
-						localStorage.setItem(storeKey, element.checked.toString())
-				})
-			else
-				this.#saveOps.push((reset: boolean) =>
-				{
-					if (reset)
-						localStorage.removeItem(storeKey)
-					else
-						localStorage.setItem(storeKey, element.value)
-
-				})
-
-			// load
-			if (value !== null)
-			{
-				if (element.type === "checkbox")
-					element.checked = value === "true" ? true : false
-				else
-					element.value = value
-			}
-		}
+		const updateCallback = () => this.#update()
 
 		const bar = document.createElement("progress")
 		bar.value = 0
-		entry("requests", bar)
+		MenuBuilding.entry(root, "requests", bar)
 		this.#requestsProgress = new AnytileRequestsProgress(bar)
 
-		br()
+		MenuBuilding.br(root)
 
 		this.#y = document.createElement("input")
 		this.#y.type = "number"
@@ -122,9 +65,9 @@ export class AnytileXyzMenu extends HTMLElement
 		this.#y.min = "0"
 		this.#y.max = "1"
 		this.#y.readOnly = true
-		tweakable("y", this.#y)
+		MenuBuilding.tweakable(root, localStorageKeyPrefix, "y", this.#y, updateCallback, this.#saveOps)
 
-		space()
+		MenuBuilding.space(root)
 
 		this.#x = document.createElement("input")
 		this.#x.type = "number"
@@ -133,30 +76,18 @@ export class AnytileXyzMenu extends HTMLElement
 		this.#x.min = "0"
 		this.#x.max = "1"
 		this.#x.readOnly = true
-		tweakable("x", this.#x)
+		MenuBuilding.tweakable(root, localStorageKeyPrefix, "x", this.#x, updateCallback, this.#saveOps)
 
-		space()
+		MenuBuilding.space(root)
 
 		this.#s = document.createElement("input")
 		this.#s.type = "number"
 		this.#s.value = "64"
 		this.#s.step = "1"
 		this.#s.readOnly = true
-		tweakable("s", this.#s)
+		MenuBuilding.tweakable(root, localStorageKeyPrefix, "s", this.#s, updateCallback, this.#saveOps)
 
-		space()
-
-		this.#resetButton = document.createElement("button")
-		this.#resetButton.type = "button"
-		this.#resetButton.innerText = "Reset Menu"
-		this.#resetButton.addEventListener("click", () =>
-		{
-			this.#doReset = true
-			window.location.reload()
-		})
-		root.appendChild(this.#resetButton)
-
-		br()
+		MenuBuilding.br(root)
 
 		this.#z = document.createElement("input")
 		this.#z.type = "number"
@@ -164,9 +95,9 @@ export class AnytileXyzMenu extends HTMLElement
 		this.#z.step = "1"
 		this.#z.min = "0"
 		this.#z.max = "31"
-		tweakable("z", this.#z)
+		MenuBuilding.tweakable(root, localStorageKeyPrefix, "z", this.#z, updateCallback, this.#saveOps)
 
-		space()
+		MenuBuilding.space(root)
 
 		this.#r = document.createElement("input")
 		this.#r.type = "number"
@@ -174,23 +105,23 @@ export class AnytileXyzMenu extends HTMLElement
 		this.#r.step = "1"
 		this.#r.min = "1"
 		this.#r.max = "20"
-		tweakable("r", this.#r)
+		MenuBuilding.tweakable(root, localStorageKeyPrefix, "r", this.#r, updateCallback, this.#saveOps)
 
-		space()
+		MenuBuilding.space(root)
 
 		this.#bounds = document.createElement("input")
 		this.#bounds.type = "checkbox"
 		this.#bounds.checked = false
-		tweakable("bounds", this.#bounds)
+		MenuBuilding.tweakable(root, localStorageKeyPrefix, "bounds", this.#bounds, updateCallback, this.#saveOps)
 
-		space()
+		MenuBuilding.space(root)
 
 		this.#coords = document.createElement("input")
 		this.#coords.type = "checkbox"
 		this.#coords.checked = false
-		tweakable("coords", this.#coords)
+		MenuBuilding.tweakable(root, localStorageKeyPrefix, "coords", this.#coords, updateCallback, this.#saveOps)
 
-		br()
+		MenuBuilding.br(root)
 
 		const datalist = document.createElement("datalist")
 
@@ -237,18 +168,13 @@ export class AnytileXyzMenu extends HTMLElement
 			root.appendChild(datalist)
 		}
 
-		space()
+		this.classList.add("anytile-sub-menu")
+	}
 
-		this.#resetButton = document.createElement("button")
-		this.#resetButton.type = "button"
-		this.#resetButton.innerText = "Save"
-		root.appendChild(this.#resetButton)
-
-		window.addEventListener("beforeunload", () =>
-		{
-			for (const saveOp of this.#saveOps)
-				saveOp(this.#doReset)
-		})
+	saveOptions(reset: boolean)
+	{
+		for (const saveOp of this.#saveOps)
+			saveOp(reset)
 	}
 
 	connectedCallback()
