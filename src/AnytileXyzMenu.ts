@@ -1,4 +1,4 @@
-import { clamp, throw_, tryFindFreeId } from "./AnytileUtils.ts"
+import { clamp, throw_ } from "./AnytileUtils.ts"
 import { MenuBuilding } from "./MenuBuilding.ts"
 
 class AnytileRequestsProgress
@@ -41,7 +41,6 @@ export class AnytileXyzMenu extends HTMLElement
 	#coords: HTMLInputElement
 	#callback: (() => void) | null = null
 	#saveOps: ((reset: boolean) => void)[] = []
-	#resetButton: HTMLButtonElement
 
 	constructor(localStorageKeyPrefix: string)
 	{
@@ -120,53 +119,6 @@ export class AnytileXyzMenu extends HTMLElement
 		this.#coords.type = "checkbox"
 		this.#coords.checked = false
 		MenuBuilding.tweakable(root, localStorageKeyPrefix, "coords", this.#coords, updateCallback, this.#saveOps)
-
-		MenuBuilding.br(root)
-
-		const datalist = document.createElement("datalist")
-
-		const addDatalistEntry = (value: string) =>
-		{
-			const option = document.createElement("option")
-			option.value = value
-			datalist.appendChild(option)
-		}
-
-		{
-			const datalistId = tryFindFreeId("anytile-menu-url-list-")
-			if (datalistId === null)
-				throw_("Failed to generate a unique id for AnytileMenu.")
-
-			datalist.id = datalistId
-
-			{
-				const storeKey = localStorageKeyPrefix + "url-datalist"
-				const value = localStorage.getItem(storeKey) ?? "[]"
-
-				const elements = JSON.parse(value)
-
-				for (let i = 0; i < elements.length; i++)
-					addDatalistEntry(elements[i])
-
-				this.#saveOps.push((reset: boolean) =>
-				{
-					if (reset)
-					{
-						localStorage.removeItem(storeKey)
-					}
-					else
-					{
-						const list: string[] = []
-						for (const option of datalist.options)
-							list.push(option.value)
-						localStorage.setItem(storeKey, JSON.stringify(list)) // TODO: maybe don't save if there were no changes?
-					}
-
-				})
-			}
-
-			root.appendChild(datalist)
-		}
 
 		this.classList.add("anytile-sub-menu")
 	}
