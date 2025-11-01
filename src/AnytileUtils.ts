@@ -12,7 +12,7 @@ export function tryFindFreeId(prefix: string): string | null
 {
 	for (let i = 0; i < 1024 * 1024; i++)
 	{
-		const candidateId = prefix + Math.random() * Number.MAX_SAFE_INTEGER
+		const candidateId = prefix + Math.floor(Math.random() * Number.MAX_SAFE_INTEGER)
 		if (document.getElementById(candidateId) === null)
 			return candidateId
 	}
