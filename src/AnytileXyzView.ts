@@ -285,6 +285,9 @@ export class AnytileXyzView extends HTMLElement
 		this.#menu.z += delta
 		this.#menu.y -= pointerRelativeZoomed[0] - pointerRelative[0]
 		this.#menu.x -= pointerRelativeZoomed[1] - pointerRelative[1]
+
+		this.#menu.y = clamp(this.#menu.y, 0.0, 1.0)
+		this.#menu.x = clamp(this.#menu.x, 0.0, 1.0)
 	}
 
 	#url(tileId: TileId)
