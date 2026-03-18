@@ -12,6 +12,31 @@ Tiles** are rendered with the [CesiumJS](https://github.com/CesiumGS/cesium)
 library. The **3D Tiles** mode is selected automatically when the url points to
 a `.json` file.
 
+## How to Package
+
+1. Install dependencies:
+   ```bash
+   npm ci
+   ```
+2. Package the project:
+   ```bash
+   npm run build
+   ```
+   The output is written to the `dist/` folder.
+
+## How to Develop
+
+1. Install dependencies:
+   ```bash
+   npm ci
+   ```
+2. Start the development server:
+   ```bash
+   npm run dev
+   ```
+3. Open the local URL printed in the terminal (e.g. `http://localhost:1234`) in
+   your browser.
+
 ## License
 
 To be decided.

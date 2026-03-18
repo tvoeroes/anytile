@@ -285,6 +285,9 @@ export class AnytileXyzView extends HTMLElement
 		this.#menu.z += delta
 		this.#menu.y -= pointerRelativeZoomed[0] - pointerRelative[0]
 		this.#menu.x -= pointerRelativeZoomed[1] - pointerRelative[1]
+
+		this.#menu.y = clamp(this.#menu.y, 0.0, 1.0)
+		this.#menu.x = clamp(this.#menu.x, 0.0, 1.0)
 	}
 
 	#url(tileId: TileId)
@@ -583,5 +586,34 @@ export class AnytileXyzView extends HTMLElement
 			if (this.#menu.coords)
 				this.#drawTile(null, tile.id, yt, xt)
 		}
+
+		if (this.#menu.minimap)
+			this.#drawMinimap()
+	}
+
+	#drawMinimap()
+	{
+		const size = 128
+		const margin = 8
+		const mx = this.#canvas.width - size - margin
+		const my = margin
+
+		this.#ctx.fillStyle = "white"
+		this.#ctx.fillRect(mx, my, size, size)
+
+		this.#ctx.strokeStyle = "black"
+		this.#ctx.lineWidth = 1
+		this.#ctx.strokeRect(mx + 0.5, my + 0.5, size - 1, size - 1)
+
+		const cx = Math.round(mx + this.#menu.x * (size - 1)) + 0.5
+		const cy = Math.round(my + this.#menu.y * (size - 1)) + 0.5
+		const armLen = 4
+
+		this.#ctx.beginPath()
+		this.#ctx.moveTo(cx - armLen, cy)
+		this.#ctx.lineTo(cx + armLen, cy)
+		this.#ctx.moveTo(cx, cy - armLen)
+		this.#ctx.lineTo(cx, cy + armLen)
+		this.#ctx.stroke()
 	}
 }

@@ -39,6 +39,7 @@ export class AnytileXyzMenu extends HTMLElement
 	#r: HTMLInputElement
 	#bounds: HTMLInputElement
 	#coords: HTMLInputElement
+	#minimap: HTMLInputElement
 	#callback: (() => void) | null = null
 	#saveOps: ((reset: boolean) => void)[] = []
 
@@ -120,6 +121,13 @@ export class AnytileXyzMenu extends HTMLElement
 		this.#coords.checked = false
 		MenuBuilding.tweakable(root, localStorageKeyPrefix, "coords", this.#coords, updateCallback, this.#saveOps)
 
+		MenuBuilding.space(root)
+
+		this.#minimap = document.createElement("input")
+		this.#minimap.type = "checkbox"
+		this.#minimap.checked = false
+		MenuBuilding.tweakable(root, localStorageKeyPrefix, "minimap", this.#minimap, updateCallback, this.#saveOps)
+
 		this.classList.add("anytile-sub-menu")
 	}
 
@@ -159,6 +167,7 @@ export class AnytileXyzMenu extends HTMLElement
 	get r() { return parseFloat(this.#r.value) }
 	get bounds() { return this.#bounds.checked }
 	get coords() { return this.#coords.checked }
+	get minimap() { return this.#minimap.checked }
 
 	set y(value: number) { this.#y.value = value.toString(); this.#update() }
 	set x(value: number) { this.#x.value = value.toString(); this.#update() }

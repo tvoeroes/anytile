@@ -1,11 +1,51 @@
 import { throw_, tryFindFreeId } from "./AnytileUtils.ts"
 import { MenuBuilding } from "./MenuBuilding.ts"
 
+function setupDatalistSync(storeKey: string, datalist: HTMLDataListElement): { addEntry: (value: string) => void; cleanup: () => void }
+{
+	const channel = new BroadcastChannel(storeKey)
+
+	const reload = () => {
+		const elements: string[] = JSON.parse(localStorage.getItem(storeKey) ?? "[]")
+		while (datalist.options.length > 0)
+			datalist.options[0].remove()
+		for (const value of elements) {
+			const option = document.createElement("option")
+			option.value = value
+			datalist.appendChild(option)
+		}
+	}
+
+	channel.onmessage = reload
+
+	reload()
+
+	const addEntry = (value: string) => {
+		if (value === "")
+			return
+		navigator.locks.request(storeKey, () => {
+			reload()
+			for (let i = datalist.options.length - 1; i >= 0; i--)
+				if (datalist.options[i].value === value)
+					datalist.options[i].remove()
+			const option = document.createElement("option")
+			option.value = value
+			datalist.insertBefore(option, datalist.firstChild)
+			const list = Array.from(datalist.options, o => o.value)
+			localStorage.setItem(storeKey, JSON.stringify(list))
+			channel.postMessage(null)
+		})
+	}
+
+	return { addEntry, cleanup: () => channel.close() }
+}
+
 export class AnytileMenu extends HTMLElement
 {
 	#url: HTMLInputElement
 	#callback: (() => void) | null = null
 	#saveOps: ((reset: boolean) => void)[] = []
+	#cleanupOps: (() => void)[] = []
 	#doReset: boolean = false
 
 	constructor(localStorageKeyPrefix: string)
@@ -45,62 +85,31 @@ export class AnytileMenu extends HTMLElement
 
 		const datalist = document.createElement("datalist")
 
-		const addDatalistEntry = (value: string) =>
-		{
-			const option = document.createElement("option")
-			option.value = value
-			datalist.appendChild(option)
-		}
-
 		{
 			const datalistId = tryFindFreeId("anytile-menu-url-list-")
 			if (datalistId === null)
 				throw_("Failed to generate a unique id for AnytileMenu.")
 
 			this.#url.setAttribute("list", datalistId)
-
 			datalist.id = datalistId
-
-			{
-				const storeKey = localStorageKeyPrefix + "url-datalist"
-				const value = localStorage.getItem(storeKey) ?? "[]"
-
-				const elements = JSON.parse(value)
-
-				for (let i = 0; i < elements.length; i++)
-					addDatalistEntry(elements[i])
-
-				this.#saveOps.push((reset: boolean) =>
-				{
-					if (reset)
-					{
-						localStorage.removeItem(storeKey)
-					}
-					else
-					{
-						const list: string[] = []
-						for (const option of datalist.options)
-							list.push(option.value)
-						localStorage.setItem(storeKey, JSON.stringify(list)) // TODO: maybe don't save if there were no changes?
-					}
-
-				})
-			}
-
 			root.appendChild(datalist)
 		}
+
+		const storeKey = localStorageKeyPrefix + "url-datalist"
+		const { addEntry, cleanup } = setupDatalistSync(storeKey, datalist)
+		this.#cleanupOps.push(cleanup)
+
+		this.#saveOps.push((reset: boolean) => {
+			if (reset)
+				localStorage.removeItem(storeKey)
+		})
 
 		MenuBuilding.space(root)
 
 		const saveButton = document.createElement("button")
 		saveButton.type = "button"
 		saveButton.innerText = "Save"
-		saveButton.addEventListener("click", () =>
-		{
-			const value = this.#url.value
-			if (value !== "")
-				addDatalistEntry(value)
-		})
+		saveButton.addEventListener("click", () => addEntry(this.#url.value))
 		root.appendChild(saveButton)
 	}
 
@@ -116,6 +125,8 @@ export class AnytileMenu extends HTMLElement
 
 	disconnectedCallback()
 	{
+		for (const cleanup of this.#cleanupOps)
+			cleanup()
 	}
 
 	adoptedCallback()
