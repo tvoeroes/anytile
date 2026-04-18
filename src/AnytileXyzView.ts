@@ -1,6 +1,8 @@
 import { throw_, clamp } from "./AnytileUtils.ts"
 import { AnytileXyzMenu } from "./AnytileXyzMenu.ts"
 
+export const AnytileXyzNativeParams = ["z", "y", "x", "q"] as const
+
 class TileId
 {
 	z: number = 0
@@ -292,6 +294,7 @@ export class AnytileXyzView extends HTMLElement
 
 	#url(tileId: TileId)
 	{
+		// NOTE: keep in sync with AnytileXyzNativeParams
 		return this.#url_
 			.replaceAll("{z}", tileId.z.toString()) // FIXME: can create scientific notation
 			.replaceAll("{y}", tileId.y.toString()) // FIXME: can convert to scientific notation

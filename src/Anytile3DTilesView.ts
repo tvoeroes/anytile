@@ -1,5 +1,7 @@
 import { Anytile3DTilesMenu } from "./Anytile3DTilesMenu.ts"
 
+export const Anytile3DTilesNativeParams: readonly string[] = []
+
 class CesiumModuleLoader
 {
 	static #module: typeof import("cesium") | null = null
@@ -98,7 +100,7 @@ export class Anytile3DTilesView extends HTMLElement
 		this.#viewer.scene.primitives.removeAll()
 		this.#updating = true // FIXME: an exception in fromUrl() will not set this to false
 		this.#Cesium.Cesium3DTileset.fromUrl(
-			this.#url,
+				this.#url,
 			{ enableDebugWireframe: haveInspector }
 		)
 			.then((tileset: any) =>
