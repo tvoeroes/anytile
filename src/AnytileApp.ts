@@ -3,7 +3,8 @@ import { Anytile3DTilesMenu } from "./Anytile3DTilesMenu.ts"
 import { AnytileMenu } from "./AnytileMenu.ts"
 import { unreachable_, throw_ } from "./AnytileUtils.ts"
 import { AnytileXyzMenu } from "./AnytileXyzMenu.ts"
-import { AnytileXyzView } from "./AnytileXyzView.ts"
+import { Anytile3DTilesNativeParams } from "./Anytile3DTilesView.ts"
+import { AnytileXyzNativeParams, AnytileXyzView } from "./AnytileXyzView.ts"
 
 namespace Anytile
 {
@@ -60,7 +61,7 @@ namespace Anytile
 	}
 
 	// TODO: fix the variable naming mess
-	export function create(app: HTMLDivElement, menu: HTMLDivElement, menu_: AnytileMenu, kind: string, view_2: ViewType)
+	export function create(app: HTMLDivElement, menu: HTMLDivElement, kind: string, view_2: ViewType)
 	{
 		if (view_2.kind !== "none")
 			throw_("View already exists.")
@@ -135,13 +136,18 @@ document.addEventListener("DOMContentLoaded", () =>
 	const urlUpdated = (url: string) =>
 	{
 		const kind = Anytile.getTypeFromUrl(menu.url)
+		menu.nativeParams = kind === "xyz" ? AnytileXyzNativeParams : Anytile3DTilesNativeParams
 
 		if (kind !== view.kind)
 		{
 			Anytile.cleanup(app, menuContainer, view, false)
-			Anytile.create(app, menuContainer, menu, kind, view)
+			Anytile.create(app, menuContainer, kind, view)
 		}
-		Anytile.setUrl(view, menu.url)
+
+		let resolvedUrl = menu.url
+		for (const [name, input] of menu.extraParams)
+			resolvedUrl = resolvedUrl.replaceAll(`{${name}}`, input.value)
+		Anytile.setUrl(view, resolvedUrl)
 	}
 
 	const update = () => urlUpdated(menu.url)
