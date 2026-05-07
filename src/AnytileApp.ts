@@ -19,18 +19,21 @@ namespace Anytile
 			// NOTE: it is convenient to have a way to show the grid
 			return "xyz"
 
-		try
-		{
-			const u = new URL(url)
-			if (u.pathname.endsWith(".json"))
-				return "3d-tiles"
-			else
-				return "xyz"
-		}
-		catch (e)
-		{
+		// NOTE: avoid "new URL()" because placeholders like "{x}" may make it throw
+		let path = url
+		const hashIndex = path.indexOf("#")
+		if (hashIndex !== -1)
+			path = path.slice(0, hashIndex)
+		const queryIndex = path.indexOf("?")
+		if (queryIndex !== -1)
+			path = path.slice(0, queryIndex)
+
+		if (path === "")
 			return "none"
-		}
+		else if (path.endsWith(".json"))
+			return "3d-tiles"
+		else
+			return "xyz"
 	}
 
 	export function cleanup(app: HTMLDivElement, menu: HTMLDivElement, view: ViewType, doReset: boolean)
