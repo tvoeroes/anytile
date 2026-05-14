@@ -32,6 +32,7 @@ export class Anytile3DTilesView extends HTMLElement
 	#url: string = ""
 	#updating: boolean = false
 	#dirty: boolean = false
+	#geoJsonDataSource: any = null /* Cesium.GeoJsonDataSource | null */
 
 	#menu: Anytile3DTilesMenu
 
@@ -97,25 +98,50 @@ export class Anytile3DTilesView extends HTMLElement
 		if (haveInspector)
 			this.#viewer.cesium3DTilesInspector.viewModel.tileset = undefined
 
-		this.#viewer.scene.primitives.removeAll()
-		this.#updating = true // FIXME: an exception in fromUrl() will not set this to false
-		this.#Cesium.Cesium3DTileset.fromUrl(
-				this.#url,
-			{ enableDebugWireframe: haveInspector }
-		)
-			.then((tileset: any) =>
-			{
-				this.#viewer.scene.primitives.add(tileset)
-				this.#viewer.zoomTo(tileset)
+		if (this.#geoJsonDataSource !== null)
+		{
+			this.#viewer.dataSources.remove(this.#geoJsonDataSource)
+			this.#geoJsonDataSource = null
+		}
 
-				if (haveInspector)
-					this.#viewer.cesium3DTilesInspector.viewModel.tileset = tileset
-			})
-			.finally(() =>
-			{
-				this.#updating = false
-				this.#tryLoad()
-			})
+		this.#viewer.scene.primitives.removeAll()
+		this.#updating = true // FIXME: an exception will not set this to false
+
+		if (this.#url.endsWith(".geojson"))
+		{
+			this.#Cesium.GeoJsonDataSource.load(this.#url)
+				.then((dataSource: any) =>
+				{
+					this.#geoJsonDataSource = dataSource
+					this.#viewer.dataSources.add(dataSource)
+					this.#viewer.zoomTo(dataSource)
+				})
+				.finally(() =>
+				{
+					this.#updating = false
+					this.#tryLoad()
+				})
+		}
+		else
+		{
+			this.#Cesium.Cesium3DTileset.fromUrl(
+					this.#url,
+				{ enableDebugWireframe: haveInspector }
+			)
+				.then((tileset: any) =>
+				{
+					this.#viewer.scene.primitives.add(tileset)
+					this.#viewer.zoomTo(tileset)
+
+					if (haveInspector)
+						this.#viewer.cesium3DTilesInspector.viewModel.tileset = tileset
+				})
+				.finally(() =>
+				{
+					this.#updating = false
+					this.#tryLoad()
+				})
+		}
 	}
 
 	setUrl(url: string)

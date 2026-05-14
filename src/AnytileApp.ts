@@ -30,7 +30,7 @@ namespace Anytile
 
 		if (path === "")
 			return "none"
-		else if (path.endsWith(".json"))
+		else if (path.endsWith(".json") || path.endsWith(".geojson"))
 			return "3d-tiles"
 		else
 			return "xyz"

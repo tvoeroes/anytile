@@ -9,10 +9,10 @@
 The viewer supports viewing **XYZ** tiled images and **3D Tiles**. The supported
 url placeholders for **XYZ** tiles are `{x}`, `{y}`, `{z}` and `{q}`. Any
 placeholder in the url that is not a built-in placeholder such as `{name}`
-becomes a custom parameter with a text input in the menu. **3D Tiles** are
-rendered with the [CesiumJS](https://github.com/CesiumGS/cesium) library. The
-**3D Tiles** mode is selected automatically when the url points to a `.json`
-file.
+becomes a custom parameter with a text input in the menu. **3D Tiles** and
+**GeoJSON** are rendered with the [CesiumJS](https://github.com/CesiumGS/cesium)
+library. The **3D Tiles** mode is selected automatically when the url points to
+a `.json` file, and **GeoJSON** when it points to a `.geojson` file.
 
 ## How to Package
 
