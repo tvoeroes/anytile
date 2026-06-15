@@ -12,6 +12,11 @@
 			margin: 0;
 		}
 
+		.anytile-app-root {
+			position: relative;
+			min-height: 100vh;
+		}
+
 		anytile-3d-tiles-view {
 			width: 100%;
 			height: 100%;
@@ -36,6 +41,7 @@
 			line-height: 1.5rem;
 			border-style: solid;
 			border-width: 0.0625rem;
+			z-index: 2;
 
 			progress {
 				width: 24rem;
@@ -44,6 +50,33 @@
 
 		.anytile-sub-menu {
 			display: block;
+		}
+
+		.anytile-drop-feedback {
+			position: absolute;
+			inset: 0.75rem;
+			display: grid;
+			place-items: center;
+			pointer-events: none;
+			opacity: 0;
+			transition: opacity 120ms ease;
+			border: 0.125rem dashed rgba(0, 0, 0, 0.35);
+			border-radius: 0.75rem;
+			background: rgba(255, 255, 255, 0.55);
+			color: #1f2937;
+			font: 600 1rem/1.4 sans-serif;
+			letter-spacing: 0.03em;
+			z-index: 1;
+		}
+
+		.anytile-drop-feedback-error {
+			border-color: rgba(153, 27, 27, 0.65);
+			background: rgba(254, 242, 242, 0.92);
+			color: #991b1b;
+		}
+
+		.anytile-drop-feedback-visible {
+			opacity: 1;
 		}
 	</style>
 

@@ -10,7 +10,7 @@ export namespace MenuBuilding
 		root.appendChild(document.createTextNode(" "))
 	}
 
-	export function entry(root: HTMLElement, name: string, element: HTMLElement) 
+	export function entry(root: HTMLElement, name: string, element: HTMLElement)
 	{
 		const label = root.appendChild(document.createElement("label"))
 		label.appendChild(document.createTextNode(`${name} = `))
@@ -22,7 +22,8 @@ export namespace MenuBuilding
 		root: HTMLElement, localStorageKeyPrefix: string,
 		name: string, element: HTMLInputElement,
 		updateCallback: () => void,
-		saveOps: ((reset: boolean) => void)[]
+		saveOps: ((reset: boolean) => void)[],
+		updateMode: "input" | "commit" = "input"
 	)
 	{
 		const storeKey = localStorageKeyPrefix + name
@@ -32,6 +33,16 @@ export namespace MenuBuilding
 		// setup watch
 		if (element.type === "checkbox")
 			element.addEventListener("change", updateCallback)
+		else if (updateMode === "commit")
+		{
+			element.addEventListener("change", updateCallback)
+			// Some browsers may not agree that pressing "Enter" is "change". Help them:
+			element.addEventListener("keydown", event =>
+			{
+				if (event.key === "Enter")
+					updateCallback()
+			})
+		}
 		else
 			element.addEventListener("input", updateCallback)
 
@@ -51,7 +62,6 @@ export namespace MenuBuilding
 					localStorage.removeItem(storeKey)
 				else
 					localStorage.setItem(storeKey, element.value)
-
 			})
 
 		// load
