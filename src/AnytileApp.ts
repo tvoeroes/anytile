@@ -236,7 +236,10 @@ document.addEventListener("DOMContentLoaded", () =>
 			Anytile.create(app, menuContainer, "3d-tiles", view)
 		}
 		if (view.kind === "3d-tiles")
+		{
+			menu.url = ""
 			view.view.dispatchEvent(new CustomEvent("anytile-drop-geojson-file", { detail: file }))
+		}
 	})
 
 	app.addEventListener("anytile-geojson-load-error", event =>

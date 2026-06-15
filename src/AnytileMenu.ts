@@ -199,6 +199,7 @@ export class AnytileMenu extends HTMLElement
 	}
 
 	get url() { return this.#url.value }
+	set url(url: string) { this.#url.value = url }
 	get extraParams(): ReadonlyMap<string, HTMLInputElement> { return this.#extraParams }
 	set nativeParams(nativeParams: Iterable<string>)
 	{
