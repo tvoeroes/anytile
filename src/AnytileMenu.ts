@@ -84,7 +84,7 @@ export class AnytileMenu extends HTMLElement
 		this.#url.type = "text"
 		this.#url.value = ""
 		this.#url.size = 48
-		MenuBuilding.tweakable(root, localStorageKeyPrefix, "url", this.#url, updateCallback, this.#saveOps)
+		MenuBuilding.tweakable(root, localStorageKeyPrefix, "url", this.#url, updateCallback, this.#saveOps, "commit")
 
 		const datalist = document.createElement("datalist")
 
