@@ -12,7 +12,9 @@ placeholder in the url that is not a built-in placeholder such as `{name}`
 becomes a custom parameter with a text input in the menu. **3D Tiles** and
 **GeoJSON** are rendered with the [CesiumJS](https://github.com/CesiumGS/cesium)
 library. The **3D Tiles** mode is selected automatically when the url points to
-a `.json` file, and **GeoJSON** when it points to a `.geojson` file.
+a non-GeoJSON `.json` file, and **GeoJSON** when it points to a `.geojson` file
+or a `.json` file that has been recognized as a GeoJSON file. You can also drag
+local GeoJSON files in to the viewer.
 
 ## How to Package
 

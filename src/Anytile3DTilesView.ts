@@ -33,8 +33,49 @@ export class Anytile3DTilesView extends HTMLElement
 	#updating: boolean = false
 	#dirty: boolean = false
 	#geoJsonDataSource: any = null /* Cesium.GeoJsonDataSource | null */
+	#activeTileset: any = null /* Cesium.Cesium3DTileset | null */
+	#pendingDroppedGeoJsonFile: File | null = null
 
 	#menu: Anytile3DTilesMenu
+
+	#reportLoadError(message: string)
+	{
+		console.error(message)
+		this.dispatchEvent(new CustomEvent("anytile-geojson-load-error", {
+			detail: message,
+			bubbles: true,
+			composed: true,
+		}))
+	}
+
+	async #loadGeoJsonDataSource(geoJson: any, sourceUri?: string)
+	{
+		if (this.#geoJsonDataSource !== null)
+			this.#geoJsonDataSource.show = true
+		else
+		{
+			this.#geoJsonDataSource = new this.#Cesium.GeoJsonDataSource()
+			await this.#viewer.dataSources.add(this.#geoJsonDataSource)
+		}
+
+		this.#clearActiveTileset()
+		await this.#geoJsonDataSource.load(geoJson, sourceUri ? { sourceUri } : undefined)
+		await this.#viewer.zoomTo(this.#geoJsonDataSource)
+	}
+
+	async #loadTileset(url: string, haveInspector: boolean)
+	{
+		const tileset = await this.#Cesium.Cesium3DTileset.fromUrl(url, { enableDebugWireframe: haveInspector })
+
+		this.#clearGeoJsonDataSource()
+		this.#clearActiveTileset()
+		this.#activeTileset = tileset
+		this.#viewer.scene.primitives.add(tileset)
+		await this.#viewer.zoomTo(tileset)
+
+		if (haveInspector)
+			this.#viewer.cesium3DTilesInspector.viewModel.tileset = tileset
+	}
 
 	constructor(menu: Anytile3DTilesMenu)
 	{
@@ -44,6 +85,11 @@ export class Anytile3DTilesView extends HTMLElement
 
 		this.#menu = menu
 		this.#menu.callback = () => this.#onUpdate()
+		this.addEventListener("anytile-drop-geojson-file", event =>
+		{
+			this.#pendingDroppedGeoJsonFile = (event as CustomEvent<File>).detail
+			this.#tryLoad()
+		})
 
 		this.#updating = true // FIXME: an exception in get() will not set this to false
 		CesiumModuleLoader.get()
@@ -79,15 +125,89 @@ export class Anytile3DTilesView extends HTMLElement
 			})
 	}
 
+	#clearScene(haveInspector: boolean)
+	{
+		if (haveInspector)
+			this.#viewer.cesium3DTilesInspector.viewModel.tileset = undefined
+
+		this.#clearActiveTileset()
+		this.#clearGeoJsonDataSource()
+	}
+
+	#clearActiveTileset()
+	{
+		if (this.#activeTileset !== null)
+		{
+			this.#viewer.scene.primitives.remove(this.#activeTileset)
+			this.#activeTileset.destroy()
+			this.#activeTileset = null
+		}
+	}
+
+	#clearGeoJsonDataSource()
+	{
+		if (this.#geoJsonDataSource !== null)
+			this.#geoJsonDataSource.show = false
+	}
+
+	async #loadDroppedGeoJsonFile(file: File)
+	{
+		this.#updating = true
+
+		try
+		{
+			await this.#loadGeoJsonDataSource(JSON.parse(await file.text()), file.name)
+		}
+		catch (error)
+		{
+			this.#reportLoadError("Could not load the dropped file.")
+		}
+		finally
+		{
+			this.#updating = false
+			this.#tryLoad()
+		}
+	}
+
+	async #loadUrl(url: string, haveInspector: boolean)
+	{
+		if (url.endsWith(".geojson"))
+		{
+			await this.#loadGeoJsonDataSource(url)
+			return
+		}
+
+		// a ".json" url may contain GeoJSON or a 3D Tiles tileset
+		const response = await fetch(url)
+		if (!response.ok)
+			throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`)
+
+		const json = await response.json()
+		if (json?.type === "FeatureCollection")
+			await this.#loadGeoJsonDataSource(json, url)
+		else
+			await this.#loadTileset(url, haveInspector)
+	}
+
 	#tryLoad()
 	{
-		if (!this.#dirty || this.#updating)
+		if (this.#updating)
+			return
+
+		if (this.#pendingDroppedGeoJsonFile !== null)
+		{
+			const file = this.#pendingDroppedGeoJsonFile
+			this.#pendingDroppedGeoJsonFile = null
+			void this.#loadDroppedGeoJsonFile(file)
+			return
+		}
+
+		if (!this.#dirty)
 			return
 
 		this.#dirty = false
 
 		const haveInspector = this.#viewer.cesium3DTilesInspector !== undefined
-
 
 		if (haveInspector !== this.#menu.with3dTilesInspector)
 		{
@@ -95,53 +215,16 @@ export class Anytile3DTilesView extends HTMLElement
 			return
 		}
 
-		if (haveInspector)
-			this.#viewer.cesium3DTilesInspector.viewModel.tileset = undefined
-
-		if (this.#geoJsonDataSource !== null)
-		{
-			this.#viewer.dataSources.remove(this.#geoJsonDataSource)
-			this.#geoJsonDataSource = null
-		}
-
-		this.#viewer.scene.primitives.removeAll()
+		this.#clearScene(haveInspector)
 		this.#updating = true // FIXME: an exception will not set this to false
 
-		if (this.#url.endsWith(".geojson"))
-		{
-			this.#Cesium.GeoJsonDataSource.load(this.#url)
-				.then((dataSource: any) =>
-				{
-					this.#geoJsonDataSource = dataSource
-					this.#viewer.dataSources.add(dataSource)
-					this.#viewer.zoomTo(dataSource)
-				})
-				.finally(() =>
-				{
-					this.#updating = false
-					this.#tryLoad()
-				})
-		}
-		else
-		{
-			this.#Cesium.Cesium3DTileset.fromUrl(
-					this.#url,
-				{ enableDebugWireframe: haveInspector }
-			)
-				.then((tileset: any) =>
-				{
-					this.#viewer.scene.primitives.add(tileset)
-					this.#viewer.zoomTo(tileset)
-
-					if (haveInspector)
-						this.#viewer.cesium3DTilesInspector.viewModel.tileset = tileset
-				})
-				.finally(() =>
-				{
-					this.#updating = false
-					this.#tryLoad()
-				})
-		}
+		this.#loadUrl(this.#url, haveInspector)
+			.catch((error) => this.#reportLoadError("Could not load the URL."))
+			.finally(() =>
+			{
+				this.#updating = false
+				this.#tryLoad()
+			})
 	}
 
 	setUrl(url: string)

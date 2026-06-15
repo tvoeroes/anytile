@@ -125,7 +125,13 @@ document.addEventListener("DOMContentLoaded", () =>
 	customElements.define("anytile-3d-tiles-menu", Anytile3DTilesMenu)
 
 	const app = document.createElement("div")
+	app.classList.add("anytile-app-root")
 	document.body.appendChild(app)
+
+	const dropFeedback = document.createElement("div")
+	dropFeedback.classList.add("anytile-drop-feedback")
+	dropFeedback.innerText = "Drop a .json or .geojson file to load it."
+	app.appendChild(dropFeedback)
 
 	const menuContainer = document.createElement("div")
 	menuContainer.classList.add("anytile-menu-container")
@@ -135,6 +141,106 @@ document.addEventListener("DOMContentLoaded", () =>
 	menuContainer.appendChild(menu)
 
 	const view: Anytile.ViewType = { kind: "none" }
+	const dropHint = "Drop a .json or .geojson file to load it."
+	let dragDepth = 0
+	let dropErrorTimeout: number | null = null
+
+	const isLoadableFile = (name: string) =>
+	{
+		const lower = name.toLowerCase()
+		return lower.endsWith(".geojson") || lower.endsWith(".json")
+	}
+
+	const showDropFeedback = (message: string, isError: boolean) =>
+	{
+		if (dropErrorTimeout !== null)
+		{
+			window.clearTimeout(dropErrorTimeout)
+			dropErrorTimeout = null
+		}
+
+		dropFeedback.innerText = message
+		dropFeedback.classList.toggle("anytile-drop-feedback-error", isError)
+		dropFeedback.classList.add("anytile-drop-feedback-visible")
+	}
+
+	const hideDropFeedback = () =>
+	{
+		dragDepth = 0
+		dropFeedback.classList.remove("anytile-drop-feedback-error", "anytile-drop-feedback-visible")
+	}
+
+	const showDropError = (message: string) =>
+	{
+		showDropFeedback(message, true)
+		dropErrorTimeout = window.setTimeout(hideDropFeedback, 2000)
+	}
+
+	const isFileDrag = (event: DragEvent) => Array.from(event.dataTransfer?.types ?? []).includes("Files")
+
+	window.addEventListener("dragenter", event =>
+	{
+		if (!isFileDrag(event))
+			return
+
+		event.preventDefault()
+		dragDepth += 1
+		showDropFeedback(dropHint, false)
+	})
+
+	window.addEventListener("dragover", event =>
+	{
+		if (!isFileDrag(event))
+			return
+
+		event.preventDefault()
+		event.dataTransfer!.dropEffect = "copy"
+	})
+
+	window.addEventListener("dragleave", event =>
+	{
+		if (!isFileDrag(event))
+			return
+
+		dragDepth = Math.max(0, dragDepth - 1)
+		if (dragDepth === 0)
+			hideDropFeedback()
+	})
+
+	window.addEventListener("drop", event =>
+	{
+		if (!isFileDrag(event))
+			return
+
+		event.preventDefault()
+		hideDropFeedback()
+
+		const files = Array.from(event.dataTransfer?.files ?? [])
+		if (files.length > 1)
+		{
+			showDropError("Drop only one file at a time.")
+			return
+		}
+
+		const file = files.find(file => isLoadableFile(file.name))
+		if (file === undefined)
+		{
+			if (files.length > 0)
+				showDropError("Only .json and .geojson files can be loaded here.")
+			return
+		}
+
+		if (view.kind !== "3d-tiles")
+		{
+			Anytile.cleanup(app, menuContainer, view, false)
+			Anytile.create(app, menuContainer, "3d-tiles", view)
+		}
+		if (view.kind === "3d-tiles")
+			view.view.dispatchEvent(new CustomEvent("anytile-drop-geojson-file", { detail: file }))
+	})
+
+	app.addEventListener("anytile-geojson-load-error", event =>
+		showDropError((event as CustomEvent<string>).detail))
 
 	const urlUpdated = (url: string) =>
 	{
