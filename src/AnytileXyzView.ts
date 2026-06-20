@@ -106,6 +106,63 @@ interface Tile
 	requested: boolean
 }
 
+class TileContextMenu
+{
+	#element: HTMLDivElement | null = null
+
+	show(clientX: number, clientY: number, tileId: TileId)
+	{
+		this.dismiss()
+
+		const menu = document.createElement("div")
+		menu.className = "anytile-context-menu"
+
+		const quadkey = TileId.toQuadkey(tileId)
+		const zxy = `${tileId.z}/${tileId.x}/${tileId.y}`
+
+		this.#addItem(menu, `Copy Z/X/Y: "${zxy}"`, zxy)
+		this.#addItem(menu, `Copy quadkey: "${quadkey}"`, quadkey)
+		document.body.appendChild(menu)
+
+		menu.style.left = `${clientX}px`
+		menu.style.top = `${clientY}px`
+
+		this.#element = menu
+
+		const dismiss = (e: PointerEvent) =>
+		{
+			if (!menu.contains(e.target as Node))
+			{
+				this.dismiss()
+				document.removeEventListener("pointerdown", dismiss)
+			}
+		}
+		document.addEventListener("pointerdown", dismiss)
+	}
+
+	#addItem(menu: HTMLDivElement, label: string, value: string)
+	{
+		const item = document.createElement("div")
+		item.className = "anytile-context-menu-item"
+		item.textContent = label
+		item.addEventListener("click", () =>
+		{
+			navigator.clipboard.writeText(value)
+			this.dismiss()
+		})
+		menu.appendChild(item)
+	}
+
+	dismiss()
+	{
+		if (this.#element !== null)
+		{
+			this.#element.remove()
+			this.#element = null
+		}
+	}
+}
+
 export class AnytileXyzView extends HTMLElement
 {
 	#canvas: HTMLCanvasElement
@@ -128,6 +185,8 @@ export class AnytileXyzView extends HTMLElement
 
 	#toBeRequested: Tile[] = []
 	#inFlight: number = 0
+
+	#contextMenu: TileContextMenu = new TileContextMenu()
 
 	constructor(menu: AnytileXyzMenu) // TODO: "busy indicator" maybe spinner, maybe some red/green light
 	{
@@ -238,6 +297,21 @@ export class AnytileXyzView extends HTMLElement
 
 				this.#scheduleRender()
 			}
+		})
+
+		this.#canvas.addEventListener("contextmenu", event =>
+		{
+			event.preventDefault()
+
+			const [yt, xt] = this.#getTranslation()
+			const tileY = Math.floor((event.offsetY - yt) / this.#menu.s)
+			const tileX = Math.floor((event.offsetX - xt) / this.#menu.s)
+			const tileId = TileId.ZYX(this.#menu.z, tileY, tileX)
+
+			if (!TileId.inBounds(tileId))
+				return
+
+			this.#contextMenu.show(event.clientX, event.clientY, tileId)
 		})
 
 		this.#update()
