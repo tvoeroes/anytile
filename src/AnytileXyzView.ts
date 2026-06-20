@@ -447,14 +447,17 @@ export class AnytileXyzView extends HTMLElement
 			const yto = yo + Math.round(lineHeight / 2)
 
 			const textZ = `z=${tileId.z}`
-			const textY = `y=${tileId.y}`
 			const textX = `x=${tileId.x}`
+			const textY = `y=${tileId.y}`
+			const textQ = `q=${TileId.toQuadkey(tileId)}`
 			this.#ctx.strokeText(textZ, xto, yto)
 			this.#ctx.fillText(textZ, xto, yto)
-			this.#ctx.strokeText(textY, xto, yto + lineHeight)
-			this.#ctx.fillText(textY, xto, yto + lineHeight)
-			this.#ctx.strokeText(textX, xto, yto + lineHeight * 2)
-			this.#ctx.fillText(textX, xto, yto + lineHeight * 2)
+			this.#ctx.strokeText(textX, xto, yto + lineHeight)
+			this.#ctx.fillText(textX, xto, yto + lineHeight)
+			this.#ctx.strokeText(textY, xto, yto + lineHeight * 2)
+			this.#ctx.fillText(textY, xto, yto + lineHeight * 2)
+			this.#ctx.strokeText(textQ, xto, yto + lineHeight * 3)
+			this.#ctx.fillText(textQ, xto, yto + lineHeight * 3)
 		}
 		else if (this.#tileSetFlip)
 		{
