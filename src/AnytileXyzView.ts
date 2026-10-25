@@ -1,7 +1,16 @@
-import { throw_, clamp } from "./AnytileUtils.ts"
+import { PMTiles } from "pmtiles"
+import { throw_, clamp, urlPath } from "./AnytileUtils.ts"
 import { AnytileXyzMenu } from "./AnytileXyzMenu.ts"
 
 export const AnytileXyzNativeParams = ["z", "y", "x", "q"] as const
+
+// NOTE: in PMTiles mode the tile coordinates come from the archive, so "z", "y", "x" and "q" are custom parameters
+export const AnytileXyzPmtilesNativeParams: readonly string[] = []
+
+export function isPmtilesUrl(url: string): boolean
+{
+	return urlPath(url).endsWith(".pmtiles")
+}
 
 class TileId
 {
@@ -178,6 +187,7 @@ export class AnytileXyzView extends HTMLElement
 	#resizeObserver: ResizeObserver
 
 	#url_: string = ""
+	#pmtiles: PMTiles | null = null
 	#menu: AnytileXyzMenu
 
 	#pointerY: number = 0
@@ -326,6 +336,9 @@ export class AnytileXyzView extends HTMLElement
 
 	setUrl(url: string)
 	{
+		if (url !== this.#url_)
+			// NOTE: keep the PMTiles instance across updates to reuse its header and directory cache
+			this.#pmtiles = isPmtilesUrl(url) ? new PMTiles(url) : null
 		this.#url_ = url
 		this.#onUpdate()
 	}
@@ -586,7 +599,6 @@ export class AnytileXyzView extends HTMLElement
 		this.#menu.requestsProgress.addTotal(1)
 
 		const image = new Image()
-		image.src = this.#url(tile.id)
 
 		// TODO: rate-limit
 
@@ -626,7 +638,33 @@ export class AnytileXyzView extends HTMLElement
 			this.#tryAddAsyncNext()
 		}
 
-		image.decode().then(success).catch(failure).finally(done)
+		this.#loadImage(image, tile.id).then(success).catch(failure).finally(done)
+	}
+
+	async #loadImage(image: HTMLImageElement, tileId: TileId)
+	{
+		if (this.#pmtiles === null)
+		{
+			image.src = this.#url(tileId)
+			await image.decode()
+			return
+		}
+
+		const response = await this.#pmtiles.getZxy(tileId.z, tileId.x, tileId.y)
+		if (response === undefined)
+			throw_("Tile not found in PMTiles archive.")
+
+		// NOTE: only raster tiles (png, jpeg, webp, avif) can be decoded, the browser sniffs the image type
+		const objectUrl = URL.createObjectURL(new Blob([response.data]))
+		try
+		{
+			image.src = objectUrl
+			await image.decode()
+		}
+		finally
+		{
+			URL.revokeObjectURL(objectUrl)
+		}
 	}
 
 	#keyFor(tileId: TileId)

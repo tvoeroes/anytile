@@ -1,10 +1,10 @@
 import { Anytile3DTilesView } from "./Anytile3DTilesView.ts"
 import { Anytile3DTilesMenu } from "./Anytile3DTilesMenu.ts"
 import { AnytileMenu } from "./AnytileMenu.ts"
-import { unreachable_, throw_ } from "./AnytileUtils.ts"
+import { unreachable_, throw_, urlPath } from "./AnytileUtils.ts"
 import { AnytileXyzMenu } from "./AnytileXyzMenu.ts"
 import { Anytile3DTilesNativeParams } from "./Anytile3DTilesView.ts"
-import { AnytileXyzNativeParams, AnytileXyzView } from "./AnytileXyzView.ts"
+import { AnytileXyzNativeParams, AnytileXyzPmtilesNativeParams, AnytileXyzView, isPmtilesUrl } from "./AnytileXyzView.ts"
 
 namespace Anytile
 {
@@ -19,14 +19,7 @@ namespace Anytile
 			// NOTE: it is convenient to have a way to show the grid
 			return "xyz"
 
-		// NOTE: avoid "new URL()" because placeholders like "{x}" may make it throw
-		let path = url
-		const hashIndex = path.indexOf("#")
-		if (hashIndex !== -1)
-			path = path.slice(0, hashIndex)
-		const queryIndex = path.indexOf("?")
-		if (queryIndex !== -1)
-			path = path.slice(0, queryIndex)
+		const path = urlPath(url)
 
 		if (path === "")
 			return "none"
@@ -248,7 +241,9 @@ document.addEventListener("DOMContentLoaded", () =>
 	const urlUpdated = (url: string) =>
 	{
 		const kind = Anytile.getTypeFromUrl(menu.url)
-		menu.nativeParams = kind === "xyz" ? AnytileXyzNativeParams : Anytile3DTilesNativeParams
+		menu.nativeParams = kind !== "xyz"
+			? Anytile3DTilesNativeParams
+			: isPmtilesUrl(menu.url) ? AnytileXyzPmtilesNativeParams : AnytileXyzNativeParams
 
 		if (kind !== view.kind)
 		{
